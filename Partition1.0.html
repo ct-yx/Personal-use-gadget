@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>浏览器文件分割工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            padding: 25px;
+            margin-top: 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .upload-section, .options-section {
+            margin-bottom: 25px;
+        }
+        
+        .drop-area {
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin: 15px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+        }
+        
+        .drop-area:hover, .drop-area.dragover {
+            background-color: #e8f4fe;
+            border-color: #2980b9;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        button, .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+            display: inline-block;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .status-section {
+            margin-top: 20px;
+        }
+        
+        .progress {
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            height: 20px;
+            margin-top: 10px;
+            position: relative;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: #3498db;
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .file-info {
+            background-color: #f9f9f9;
+            border-left: 4px solid #3498db;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .option-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .option {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        
+        .download-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .download-link {
+            background-color: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            padding: 10px;
+            text-align: center;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .download-link:hover {
+            background-color: #d5dbdb;
+            border-color: #3498db;
+        }
+        
+        .error {
+            color: #e74c3c;
+            background-color: #fdeded;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .success {
+            color: #27ae60;
+            background-color: #e6f7ee;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>浏览器文件分割工具</h1>
+        
+        <div class="upload-section">
+            <h2>上传文件</h2>
+            <div class="drop-area" id="dropArea">
+                <p>拖放文件到此处或点击浏览</p>
+                <p style="font-size: 0.9em; color: #7f8c8d;">支持.txt文件（无大小限制）</p>
+                <button class="btn" id="browseBtn">浏览文件</button>
+                <input type="file" id="fileInput" accept=".txt">
+            </div>
+            <div class="file-info" id="fileInfo" style="display: none;">
+                <strong>已选文件:</strong> <span id="fileName"></span><br>
+                <strong>文件大小:</strong> <span id="fileSize"></span>
+            </div>
+        </div>
+        
+        <div class="options-section">
+            <h2>分割选项</h2>
+            <div class="option-row">
+                <div class="option">
+                    <label for="splitMode">分割模式</label>
+                    <select id="splitMode">
+                        <option value="chars">按字符数分割</option>
+                        <option value="bytes">按字节大小分割</option>
+                    </select>
+                </div>
+                
+                <div class="option">
+                    <label for="splitSize">分割大小</label>
+                    <input type="number" id="splitSize" min="1" value="1000" placeholder="输入大小">
+                </div>
+            </div>
+            
+            <button id="splitBtn" disabled>开始分割</button>
+        </div>
+        
+        <div class="status-section">
+            <div id="progressStatus">等待文件上传...</div>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+        
+        <div class="error" id="errorMsg"></div>
+        <div class="success" id="successMsg"></div>
+        
+        <div class="download-section" id="downloadSection" style="display: none;">
+            <h2>分割结果 (<span id="fileCount">0</span> 个文件)</h2>
+            <div class="download-links" id="downloadLinks"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 元素引用
+            const fileInput = document.getElementById('fileInput');
+            const browseBtn = document.getElementById('browseBtn');
+            const dropArea = document.getElementById('dropArea');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const fileInfo = document.getElementById('fileInfo');
+            const splitBtn = document.getElementById('splitBtn');
+            const splitMode = document.getElementById('splitMode');
+            const splitSize = document.getElementById('splitSize');
+            const progressStatus = document.getElementById('progressStatus');
+            const progressBar = document.getElementById('progressBar');
+            const errorMsg = document.getElementById('errorMsg');
+            const successMsg = document.getElementById('successMsg');
+            const downloadSection = document.getElementById('downloadSection');
+            const fileCount = document.getElementById('fileCount');
+            const downloadLinks = document.getElementById('downloadLinks');
+            
+            let currentFile = null;
+            let fileContent = '';
+            
+            // 事件监听器
+            browseBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+            dropArea.addEventListener('dragover', handleDragOver);
+            dropArea.addEventListener('dragleave', handleDragLeave);
+            dropArea.addEventListener('drop', handleDrop);
+            splitBtn.addEventListener('click', startSplitProcess);
+            
+            // 文件操作函数
+            function handleFileSelect(e) {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            }
+            
+            function handleDragOver(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.add('dragover');
+            }
+            
+            function handleDragLeave(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.remove('dragover');
+            }
+            
+            function handleDrop(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            }
+            
+            function processFile(file) {
+                if (!file.name.endsWith('.txt')) {
+                    showError('只支持 .txt 文件');
+                    return;
+                }
+                
+                currentFile = file;
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                fileInfo.style.display = 'block';
+                
+                // 重置UI状态
+                hideError();
+                progressStatus.textContent = '正在读取文件内容...';
+                progressBar.style.width = '0%';
+                splitBtn.disabled = true;
+                
+                const reader = new FileReader();
+                
+                reader.onloadstart = function() {
+                    progressStatus.textContent = `正在加载文件: ${file.name}`;
+                };
+                
+                reader.onprogress = function(e) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    progressStatus.textContent = `加载中... ${percent}%`;
+                };
+                
+                reader.onload = function(e) {
+                    fileContent = e.target.result;
+                    progressBar.style.width = '100%';
+                    progressStatus.textContent = '文件读取完成，准备分割';
+                    splitBtn.disabled = false;
+                };
+                
+                reader.onerror = function() {
+                    showError('读取文件时发生错误，请重试');
+                };
+                
+                reader.readAsText(file);
+            }
+            
+            function startSplitProcess() {
+                // 重置UI
+                hideError();
+                downloadSection.style.display = 'none';
+                downloadLinks.innerHTML = '';
+                
+                // 获取分割选项
+                const mode = splitMode.value;
+                const size = parseInt(splitSize.value);
+                
+                // 验证输入
+                if (!size || size <= 0) {
+                    showError('请输入有效的分割大小');
+                    return;
+                }
+                
+                if (!fileContent || !currentFile) {
+                    showError('请先上传文件');
+                    return;
+                }
+                
+                // 准备分割
+                progressStatus.textContent = '开始处理文件...';
+                splitBtn.disabled = true;
+                
+                // 分割文件（使用setTimeout避免阻塞UI）
+                setTimeout(() => {
+                    try {
+                        const parts = splitFileContent(fileContent, mode, size);
+                        progressStatus.textContent = '分割完成!';
+                        showDownloadLinks(parts, currentFile.name);
+                        showSuccess(`成功分割为 ${parts.length} 个文件`);
+                    } catch (error) {
+                        showError(`分割失败: ${error.message}`);
+                    }
+                }, 100);
+            }
+            
+            function splitFileContent(content, mode, size) {
+                const parts = [];
+                let index = 0;
+                
+                if (mode === 'chars') {
+                    // 按字符数分割
+                    while (index < content.length) {
+                        const part = content.substr(index, size);
+                        parts.push(part);
+                        index += size;
+                    }
+                } else {
+                    // 按字节大小分割
+                    // 创建TextEncoder获取字节长度
+                    const encoder = new TextEncoder();
+                    while (index < content.length) {
+                        // 确保在字符边界切割（避免乱码）
+                        const safeIndex = findSafeSplitPoint(content, index, index + size);
+                        const part = content.substring(index, safeIndex);
+                        parts.push(part);
+                        index = safeIndex;
+                    }
+                }
+                
+                return parts;
+            }
+            
+            function findSafeSplitPoint(str, start, maxEnd) {
+                if (maxEnd >= str.length) return str.length;
+                
+                // 查找最近的换行符作为安全切割点
+                const nearestNewline = str.lastIndexOf('\n', maxEnd);
+                if (nearestNewline > start) return nearestNewline + 1;
+                
+                // 查找空格或标点符号作为次优切割点
+                const fallbackIndex = str.lastIndexOf(' ', maxEnd);
+                if (fallbackIndex > start) return fallbackIndex + 1;
+                
+                // 无法找到安全点，直接切割
+                return maxEnd;
+            }
+            
+            function showDownloadLinks(parts, originalName) {
+                const basename = originalName.replace('.txt', '');
+                fileCount.textContent = parts.length;
+                downloadSection.style.display = 'block';
+                
+                parts.forEach((content, index) => {
+                    const blob = new Blob([content], {type: 'text/plain'});
+                    const url = URL.createObjectURL(blob);
+                    
+                    const partName = `${basename}_part${index + 1}.txt`;
+                    
+                    const linkContainer = document.createElement('a');
+                    linkContainer.className = 'download-link';
+                    linkContainer.textContent = `part-${index + 1}`;
+                    linkContainer.href = url;
+                    linkContainer.download = partName;
+                    linkContainer.title = `下载分割文件 ${partName} (大小: ${formatFileSize(blob.size)})`;
+                    
+                    downloadLinks.appendChild(linkContainer);
+                });
+            }
+            
+            // 辅助函数
+            function showError(message) {
+                errorMsg.textContent = message;
+                errorMsg.style.display = 'block';
+                successMsg.style.display = 'none';
+            }
+            
+            function hideError() {
+                errorMsg.style.display = 'none';
+            }
+            
+            function showSuccess(message) {
+                successMsg.textContent = message;
+                successMsg.style.display = 'block';
+                errorMsg.style.display = 'none';
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' bytes';
+                else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+                else return (bytes / 1048576).toFixed(2) + ' MB';
+            }
+        });
+    </script>
+</body>
+</html>
