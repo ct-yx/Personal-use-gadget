@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF页面重排工具</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/downloadjs@1.4.7"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 25px;
+            background-color: #f8f9fa;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            background-color: #e3f2fd;
+            border-color: #2980b9;
+        }
+        .upload-area p {
+            margin: 10px 0;
+            color: #7f8c8d;
+        }
+        #fileInput {
+            display: none;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            display: block;
+            margin: 20px auto;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .status {
+            text-align: center;
+            margin: 15px 0;
+            min-height: 24px;
+        }
+        .status.success {
+            color: #27ae60;
+        }
+        .status.error {
+            color: #e74c3c;
+        }
+        .options {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .option-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 15px;
+            border-radius: 6px;
+            background: #f0f4f8;
+            transition: all 0.3s;
+        }
+        .option-item:hover {
+            background: #e1e8f0;
+        }
+        .option-item input {
+            margin-right: 8px;
+        }
+        .option-item label {
+            cursor: pointer;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF页面重排工具</h1>
+        
+        <div class="upload-area" id="dropArea">
+            <p>拖放PDF文件到此处 或</p>
+            <button class="btn" id="selectBtn">选择PDF文件</button>
+            <input type="file" id="fileInput" accept=".pdf">
+        </div>
+        
+        <div class="options">
+            <div class="option-item">
+                <input type="radio" id="layout1" name="layout" value="2x1" checked>
+                <label for="layout1">一页两张（纵向排列）</label>
+            </div>
+            <div class="option-item">
+                <input type="radio" id="layout2" name="layout" value="1x2">
+                <label for="layout2">一页两张（横向排列）</label>
+            </div>
+            <div class="option-item">
+                <input type="radio" id="layout3" name="layout" value="2x2">
+                <label for="layout3">一页四张（2×2）</label>
+            </div>
+        </div>
+        
+        <button class="btn" id="convertBtn" disabled>转换PDF</button>
+        <div class="status" id="status"></div>
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>处理中，请稍候...</p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>本工具完全在浏览器中运行，您的文件不会被上传到任何服务器</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('fileInput');
+            const selectBtn = document.getElementById('selectBtn');
+            const dropArea = document.getElementById('dropArea');
+            const convertBtn = document.getElementById('convertBtn');
+            const status = document.getElementById('status');
+            const loading = document.getElementById('loading');
+            
+            let pdfFile = null;
+            
+            // 文件选择处理
+            selectBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 拖放处理
+            dropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropArea.style.backgroundColor = '#e3f2fd';
+            });
+            
+            dropArea.addEventListener('dragleave', () => {
+                dropArea.style.backgroundColor = '#f8f9fa';
+            });
+            
+            dropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropArea.style.backgroundColor = '#f8f9fa';
+                
+                if (e.dataTransfer.files.length) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+            
+            // 转换按钮
+            convertBtn.addEventListener('click', convertPDF);
+            
+            function handleFileSelect(e) {
+                if (e.target.files.length) {
+                    handleFile(e.target.files[0]);
+                }
+            }
+            
+            function handleFile(file) {
+                if (file.type !== 'application/pdf') {
+                    showStatus('请选择PDF文件', 'error');
+                    return;
+                }
+                
+                pdfFile = file;
+                showStatus(`已选择: ${file.name}`, 'success');
+                convertBtn.disabled = false;
+            }
+            
+            function showStatus(message, type = '') {
+                status.textContent = message;
+                status.className = 'status';
+                if (type) {
+                    status.classList.add(type);
+                }
+            }
+            
+            async function convertPDF() {
+                if (!pdfFile) return;
+                
+                showStatus('处理中...');
+                convertBtn.disabled = true;
+                loading.style.display = 'block';
+                
+                try {
+                    const arrayBuffer = await pdfFile.arrayBuffer();
+                    const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                    
+                    // 获取用户选择的布局
+                    const layout = document.querySelector('input[name="layout"]:checked').value;
+                    
+                    // 创建新PDF
+                    const newPdf = await PDFLib.PDFDocument.create();
+                    
+                    // 根据布局设置新页面尺寸
+                    let pageWidth, pageHeight;
+                    let cols = 1, rows = 1;
+                    
+                    switch(layout) {
+                        case '2x1': // 纵向排列 (上下)
+                            pageWidth = 595;  // A4宽度
+                            pageHeight = 842; // A4高度
+                            rows = 2;
+                            break;
+                        case '1x2': // 横向排列 (左右)
+                            pageWidth = 842;  // A4横向宽度
+                            pageHeight = 595; // A4横向高度
+                            cols = 2;
+                            break;
+                        case '2x2': // 2x2布局
+                            pageWidth = 842;  // A4横向宽度
+                            pageHeight = 595; // A4横向高度
+                            cols = 2;
+                            rows = 2;
+                            break;
+                    }
+                    
+                    const perPage = cols * rows; // 每页容纳的原始页面数
+                    
+                    // 计算每个小页面的尺寸
+                    const cellWidth = pageWidth / cols;
+                    const cellHeight = pageHeight / rows;
+                    
+                    // 处理所有页面
+                    const totalPages = pdfDoc.getPageCount();
+                    
+                    for (let i = 0; i < totalPages; i += perPage) {
+                        // 创建新页面
+                        const newPage = newPdf.addPage([pageWidth, pageHeight]);
+                        
+                        // 处理当前页中的每个原始页面
+                        for (let j = 0; j < perPage; j++) {
+                            const pageIndex = i + j;
+                            if (pageIndex >= totalPages) break;
+                            
+                            const originalPage = pdfDoc.getPage(pageIndex);
+                            const { width: origWidth, height: origHeight } = originalPage.getSize();
+                            
+                            // 计算缩放比例以适应小页面
+                            const scale = Math.min(
+                                cellWidth / origWidth,
+                                cellHeight / origHeight
+                            );
+                            
+                            const scaledWidth = origWidth * scale;
+                            const scaledHeight = origHeight * scale;
+                            
+                            // 计算位置
+                            const colIndex = j % cols;
+                            const rowIndex = Math.floor(j / cols);
+                            
+                            // 计算居中位置
+                            const x = colIndex * cellWidth + (cellWidth - scaledWidth) / 2;
+                            const y = pageHeight - (rowIndex + 1) * cellHeight + (cellHeight - scaledHeight) / 2;
+                            
+                            // 嵌入页面
+                            const embeddedPage = await newPdf.embedPage(originalPage);
+                            newPage.drawPage(embeddedPage, {
+                                x,
+                                y,
+                                width: scaledWidth,
+                                height: scaledHeight
+                            });
+                        }
+                    }
+                    
+                    // 生成并下载新PDF
+                    const pdfBytes = await newPdf.save();
+                    download(pdfBytes, `converted_${pdfFile.name}`, "application/pdf");
+                    
+                    showStatus('转换完成！文件已下载', 'success');
+                    
+                } catch (error) {
+                    console.error('转换失败:', error);
+                    showStatus(`转换失败: ${error.message}`, 'error');
+                } finally {
+                    convertBtn.disabled = false;
+                    loading.style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
