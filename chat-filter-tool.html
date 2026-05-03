@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>对话提取 · 语料压缩工具</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+SC:wght@300;400;600&display=swap');
+
+        :root {
+            --bg: #0e0e0e;
+            --surface: #161616;
+            --surface2: #1e1e1e;
+            --border: #2a2a2a;
+            --accent: #e8ff47;
+            --accent2: #47c8ff;
+            --text: #e0e0e0;
+            --muted: #666;
+            --danger: #ff4747;
+            --success: #47ff8a;
+            --warning: #ffc847;
+            --mono: 'IBM Plex Mono', monospace;
+            --sans: 'Noto Sans SC', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .header {
+            border-bottom: 1px solid var(--border);
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--surface);
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--accent);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            border: 1px solid var(--accent);
+            padding: 4px 8px;
+            font-weight: 600;
+        }
+
+        .header-title {
+            font-size: 14px;
+            color: var(--muted);
+            font-family: var(--mono);
+            letter-spacing: 1px;
+        }
+
+        .version-tag {
+            font-size: 10px;
+            color: var(--accent2);
+            font-family: var(--mono);
+            margin-left: auto;
+            opacity: 0.7;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 40px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--surface2);
+        }
+
+        .step-num {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--accent);
+            background: rgba(232, 255, 71, 0.1);
+            border: 1px solid rgba(232, 255, 71, 0.3);
+            padding: 2px 7px;
+            border-radius: 2px;
+            font-weight: 600;
+        }
+
+        .card-title {
+            font-size: 13px;
+            color: var(--text);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 2px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(232, 255, 71, 0.03);
+        }
+        .drop-zone input[type=file] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        .drop-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+        .drop-text {
+            font-size: 14px;
+            color: var(--muted);
+            font-family: var(--mono);
+        }
+        .drop-text strong {
+            color: var(--accent);
+        }
+        .file-info {
+            margin-top: 12px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--accent2);
+            display: none;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .form-row.single {
+            grid-template-columns: 1fr;
+        }
+        .form-row.three {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+        .form-row.four {
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            font-family: var(--mono);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        input[type=text],
+        input[type=number],
+        select,
+        textarea {
+            width: 100%;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 12px;
+            font-family: var(--mono);
+            font-size: 13px;
+            border-radius: 2px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type=text]:focus,
+        input[type=number]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--accent);
+        }
+        select option {
+            background: var(--surface2);
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #000;
+        }
+
+        .hint {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 6px;
+            font-family: var(--mono);
+            line-height: 1.6;
+        }
+        .hint-accent {
+            color: var(--accent2);
+        }
+
+        .check-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .check-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .check-item input[type=checkbox] {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            border-radius: 2px;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 2px;
+            transition: all 0.15s;
+        }
+        .check-item input[type=checkbox]:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6l3 3 5-5' stroke='%23000' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-size: 10px;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .check-label {
+            font-size: 13px;
+            color: var(--text);
+        }
+        .check-label small {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+            font-family: var(--mono);
+        }
+
+        .btn {
+            padding: 12px 28px;
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+        }
+        .btn-primary:hover {
+            background: #f5ff70;
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: transparent;
+            color: var(--accent2);
+            border: 1px solid var(--accent2);
+        }
+        .btn-secondary:hover {
+            background: rgba(71, 200, 255, 0.08);
+        }
+        .btn-small {
+            padding: 6px 14px;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .progress-wrap {
+            display: none;
+        }
+        .progress-bar-outer {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .progress-bar-inner {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.15s;
+            border-radius: 2px;
+        }
+        .progress-text {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+        }
+        .stat-item {
+            background: var(--surface2);
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-value {
+            font-family: var(--mono);
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--accent);
+            display: block;
+        }
+        .stat-value.small {
+            font-size: 16px;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+            font-family: var(--mono);
+            letter-spacing: 0.5px;
+        }
+
+        .preview-wrap {
+            display: none;
+        }
+        .preview-area {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 16px;
+            max-height: 240px;
+            overflow-y: auto;
+            font-family: var(--mono);
+            font-size: 12px;
+            line-height: 1.8;
+            color: #aaa;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .preview-area::-webkit-scrollbar {
+            width: 4px;
+        }
+        .preview-area::-webkit-scrollbar-track {
+            background: var(--surface);
+        }
+        .preview-area::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .alert {
+            padding: 10px 14px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-family: var(--mono);
+            display: none;
+            margin-bottom: 12px;
+        }
+        .alert-error {
+            background: rgba(255, 71, 71, 0.1);
+            border: 1px solid rgba(255, 71, 71, 0.3);
+            color: var(--danger);
+        }
+        .alert-success {
+            background: rgba(71, 255, 138, 0.1);
+            border: 1px solid rgba(71, 255, 138, 0.3);
+            color: var(--success);
+        }
+        .alert-info {
+            background: rgba(71, 200, 255, 0.08);
+            border: 1px solid rgba(71, 200, 255, 0.25);
+            color: var(--accent2);
+        }
+
+        .detected-badge {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 2px;
+            margin-left: 8px;
+            display: none;
+        }
+        .detected-badge.show {
+            display: inline-block;
+        }
+        .detected-badge.ok {
+            background: rgba(71, 255, 138, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(71, 255, 138, 0.3);
+        }
+        .detected-badge.warn {
+            background: rgba(255, 200, 71, 0.15);
+            color: #ffc847;
+            border: 1px solid rgba(255, 200, 71, 0.3);
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 20px 0;
+        }
+        .divider-sm {
+            margin: 14px 0;
+        }
+
+        .tip-box {
+            background: rgba(71, 200, 255, 0.05);
+            border: 1px solid rgba(71, 200, 255, 0.15);
+            border-radius: 2px;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: #88ccff;
+            font-family: var(--mono);
+            line-height: 1.7;
+        }
+        .tip-box strong {
+            color: var(--accent2);
+        }
+
+        .range-display {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 600;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .split-list {
+            display: none;
+            margin-top: 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 12px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .split-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text);
+            border-bottom: 1px solid rgba(42, 42, 42, 0.5);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .split-list-item:hover {
+            background: rgba(232, 255, 71, 0.04);
+        }
+        .split-list-item:last-child {
+            border-bottom: none;
+        }
+        .split-list-item .part-name {
+            color: var(--accent2);
+        }
+        .split-list-item .part-size {
+            color: var(--muted);
+        }
+
+        @media (max-width: 700px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .form-row.three {
+                grid-template-columns: 1fr 1fr;
+            }
+            .form-row.four {
+                grid-template-columns: 1fr 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .header {
+                padding: 16px 20px;
+            }
+            .container {
+                padding: 24px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <span class="logo">TXTOPT</span>
+        <span class="header-title">对话提取 & 语料压缩工具</span>
+        <span class="version-tag">v2 · 智能去重+裁剪</span>
+    </div>
+
+    <div class="container">
+
+        <!-- Step 1: Upload -->
+        <div class="card">
+            <div class="card-header">
+                <span class="step-num">01</span>
+                <span class="card-title">上传对话文件</span>
+            </div>
+            <div class="card-body">
+                <div class="drop-zone" id="dropZone">
+                    <input type="file" id="fileInput" accept=".txt">
+                    <div class="drop-icon">📄</div>
+                    <div class="drop-text">点击选择或拖拽 <strong>.txt</strong> 文件到此处</div>
+                    <div class="drop-text" style="font-size:11px;margin-top:6px;color:#444">支持超大文件（60MB+）· 自动识别编码</div>
+                </div>
+                <div class="file-info" id="fileInfo"></div>
+            </div>
+        </div>
+
+        <!-- Step 2: Config -->
+        <div class="card">
+            <div class="card-header">
+                <span class="step-num">02</span>
+                <span class="card-title">提取配置</span>
+            </div>
+            <div class="card-body">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>格式类型</label>
+                        <select id="formatType">
+                            <option value="auto">自动检测</option>
+                            <option value="colon">名字: 内容（最常见）</option>
+                            <option value="wechat">微信导出格式</option>
+                            <option value="qq">QQ导出格式</option>
+                            <option value="custom">自定义正则</option>
+                        </select>
+                        <div class="hint">若自动检测失败，请手动选择</div>
+                    </div>
+                    <div class="form-group">
+                        <label>提取发言人 <span class="detected-badge" id="detectedBadge"></span></label>
+                        <input type="text" id="speakerName" placeholder="输入要保留的人名，例如：张三">
+                        <div class="hint">仅保留此人的发言内容（区分大小写）</div>
+                    </div>
+                </div>
+
+                <div id="customRegexRow" class="form-row single" style="display:none">
+                    <div class="form-group">
+                        <label>自定义正则（匹配发言人行）</label>
+                        <input type="text" id="customRegex" placeholder="例如：^(.+?)\s*[\[（(].*?[\]）)]\s*$">
+                        <div class="hint">正则需包含一个捕获组来提取发言人名称</div>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <div class="form-row three">
+                    <div class="form-group">
+                        <label>最短保留字数</label>
+                        <input type="number" id="minLen" value="2" min="0" max="500" style="width:100%">
+                        <div class="hint">过滤太短的回复（如"嗯""哦"）</div>
+                    </div>
+                    <div class="form-group">
+                        <label>相似去重阈值 %</label>
+                        <input type="number" id="dedupThreshold" value="88" min="0" max="100" style="width:100%">
+                        <div class="hint">超过此相似度视为重复（0=不去重，推荐85-92）</div>
+                    </div>
+                    <div class="form-group">
+                        <label>最多保留条数</label>
+                        <input type="number" id="maxLines" value="0" min="0" style="width:100%">
+                        <div class="hint">0 = 不限制条数</div>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- 新增：语料裁剪配置 -->
+                <div style="margin-bottom:16px">
+                    <div style="font-size:11px;color:var(--accent);font-family:var(--mono);letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">
+                        ✂ 语料裁剪（初处理结束后执行）
+                    </div>
+                    <div class="form-row three">
+                        <div class="form-group">
+                            <label>裁剪模式</label>
+                            <select id="trimMode">
+                                <option value="none">不裁剪 — 保留全部</option>
+                                <option value="position">按位置裁剪</option>
+                                <option value="diversity">按差异值智能筛选</option>
+                                <option value="random">随机保留</option>
+                            </select>
+                            <div class="hint hint-accent">差异值模式：优先保留内容差异大的条目</div>
+                        </div>
+                        <div class="form-group" id="trimPositionGroup" style="display:none">
+                            <label>保留位置</label>
+                            <select id="trimPosition">
+                                <option value="head">保留前部</option>
+                                <option value="tail">保留后部（去掉前N%）</option>
+                                <option value="middle">保留中部</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="trimRatioGroup" style="display:none">
+                            <label>保留比例：<span class="range-display" id="trimRatioDisplay">100%</span></label>
+                            <input type="range" id="trimRatio" value="100" min="10" max="100" step="5">
+                            <div class="hint">拖动滑块调整保留比例</div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <div class="check-group">
+                    <label class="check-item">
+                        <input type="checkbox" id="opt_removeMeta" checked>
+                        <span class="check-label">
+                            移除时间戳和元信息
+                            <small>删除行首的时间、日期等格式信息</small>
+                        </span>
+                    </label>
+                    <label class="check-item">
+                        <input type="checkbox" id="opt_removeEmoji">
+                        <span class="check-label">
+                            移除表情符号（Emoji）
+                            <small>删除所有 emoji，减小文件体积</small>
+                        </span>
+                    </label>
+                    <label class="check-item">
+                        <input type="checkbox" id="opt_collapseSpace" checked>
+                        <span class="check-label">
+                            合并多余空行
+                            <small>将连续空行压缩为单个换行</small>
+                        </span>
+                    </label>
+                    <label class="check-item">
+                        <input type="checkbox" id="opt_removeName">
+                        <span class="check-label">
+                            去掉发言人前缀
+                            <small>输出时只保留纯文本，不含"名字:"前缀</small>
+                        </span>
+                    </label>
+                    <label class="check-item">
+                        <input type="checkbox" id="opt_removeBracket">
+                        <span class="check-label">
+                            移除括号注释（如 [图片] [表情] [语音]）
+                            <small>删除方括号/圆括号内的媒体占位符</small>
+                        </span>
+                    </label>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Step 3: Process -->
+        <div class="card">
+            <div class="card-header">
+                <span class="step-num">03</span>
+                <span class="card-title">处理 & 导出</span>
+            </div>
+            <div class="card-body">
+
+                <div class="alert alert-error" id="errorAlert"></div>
+                <div class="alert alert-info" id="infoAlert" style="display:none"></div>
+
+                <div class="actions" style="margin-bottom:20px">
+                    <button class="btn btn-primary" id="processBtn" disabled>开始处理</button>
+                    <button class="btn btn-secondary" id="detectBtn" disabled>自动检测格式</button>
+                    <button class="btn btn-secondary btn-small" id="copyBtn" style="display:none">📋 复制结果</button>
+                </div>
+
+                <div class="progress-wrap" id="progressWrap">
+                    <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
+                    <div class="progress-text" id="progressText">正在处理...</div>
+                </div>
+
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-item"><span class="stat-value" id="s-orig-size">—</span><span class="stat-label">原始大小</span></div>
+                    <div class="stat-item"><span class="stat-value" id="s-out-size">—</span><span class="stat-label">输出大小</span></div>
+                    <div class="stat-item"><span class="stat-value" id="s-lines">—</span><span class="stat-label">保留条数</span></div>
+                    <div class="stat-item"><span class="stat-value" id="s-ratio">—</span><span class="stat-label">压缩率</span></div>
+                </div>
+
+                <div class="preview-wrap" id="previewWrap" style="margin-top:20px">
+                    <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:8px;letter-spacing:1px;">PREVIEW — 前200条</div>
+                    <div class="preview-area" id="previewArea"></div>
+                </div>
+
+                <div id="downloadWrap" style="display:none;margin-top:20px">
+                    <div class="tip-box" style="margin-bottom:16px">
+                        <strong>💡 使用建议：</strong>输出文件已优化，如仍超过 AI 限制（约 6MB），可将文件按需拆分，
+                        或在上方调低"最多保留条数"和"保留比例"来控制大小。建议向 AI 说明：
+                        <em>"以下是某人的真实对话语料，请学习其说话风格……"</em>
+                    </div>
+                    <div class="actions" style="margin-bottom:12px">
+                        <button class="btn btn-primary" id="downloadBtn">⬇ 下载提取结果 (.txt)</button>
+                        <button class="btn btn-secondary" id="splitDownloadBtn" style="display:none">📦 拆分下载（每份约 5MB）</button>
+                        <button class="btn btn-secondary btn-small" id="splitListBtn" style="display:none">📋 查看拆分列表</button>
+                    </div>
+                    <div class="split-list" id="splitList"></div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let fileContent = null;
+        let fileName = '';
+        let resultLines = [];
+        let splitChunks = []; // 存储拆分后的数据块
+
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const fileInfo = document.getElementById('fileInfo');
+        const processBtn = document.getElementById('processBtn');
+        const detectBtn = document.getElementById('detectBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const progressWrap = document.getElementById('progressWrap');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const statsGrid = document.getElementById('statsGrid');
+        const previewWrap = document.getElementById('previewWrap');
+        const previewArea = document.getElementById('previewArea');
+        const downloadWrap = document.getElementById('downloadWrap');
+        const errorAlert = document.getElementById('errorAlert');
+        const infoAlert = document.getElementById('infoAlert');
+        const detectedBadge = document.getElementById('detectedBadge');
+        const splitDownloadBtn = document.getElementById('splitDownloadBtn');
+        const splitListBtn = document.getElementById('splitListBtn');
+        const splitList = document.getElementById('splitList');
+        const trimRatioDisplay = document.getElementById('trimRatioDisplay');
+        const trimPositionGroup = document.getElementById('trimPositionGroup');
+        const trimRatioGroup = document.getElementById('trimRatioGroup');
+
+        // Format selector
+        document.getElementById('formatType').addEventListener('change', function() {
+            document.getElementById('customRegexRow').style.display = this.value === 'custom' ? '' : 'none';
+        });
+
+        // Trim mode selector
+        document.getElementById('trimMode').addEventListener('change', function() {
+            const showRatio = this.value !== 'none';
+            const showPosition = this.value === 'position';
+            trimRatioGroup.style.display = showRatio ? '' : 'none';
+            trimPositionGroup.style.display = showPosition ? '' : 'none';
+        });
+
+        // Trim ratio display
+        document.getElementById('trimRatio').addEventListener('input', function() {
+            trimRatioDisplay.textContent = this.value + '%';
+        });
+
+        // Drag and Drop
+        dropZone.addEventListener('dragover', e => { e.preventDefault();
+            dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files[0]) handleFile(fileInput.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.txt') && !file.type.includes('text')) {
+                showError('请上传 .txt 格式文件');
+                return;
+            }
+            fileName = file.name.replace(/\.txt$/i, '');
+            fileInfo.style.display = 'block';
+            fileInfo.textContent = `📁 ${file.name}  ·  ${formatSize(file.size)}  ·  正在读取…`;
+
+            const reader = new FileReader();
+            reader.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const pct = Math.round(e.loaded / e.total * 100);
+                    fileInfo.textContent =
+                        `📁 ${file.name}  ·  ${formatSize(file.size)}  ·  读取中 ${pct}%`;
+                }
+            };
+            reader.onload = (e) => {
+                fileContent = e.target.result;
+                const lineCount = fileContent.split('\n').length.toLocaleString();
+                fileInfo.textContent =
+                    `✅ ${file.name}  ·  ${formatSize(file.size)}  ·  ${lineCount} 行`;
+                processBtn.disabled = false;
+                detectBtn.disabled = false;
+            };
+            reader.onerror = () => showError('文件读取失败，请重试');
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // Auto detect format
+        detectBtn.addEventListener('click', () => {
+            if (!fileContent) return;
+            const sample = fileContent.slice(0, 50000);
+            const lines = sample.split('\n').slice(0, 500);
+
+            const formats = detectFormats(lines);
+            if (formats.length > 0) {
+                const top = formats[0];
+                document.getElementById('formatType').value = top.type;
+                detectedBadge.textContent = `✓ ${top.name}`;
+                detectedBadge.className = 'detected-badge show ok';
+                if (top.speakers && top.speakers.length > 0) {
+                    const speakerStr = top.speakers.slice(0, 6).join(' / ');
+                    detectedBadge.textContent += `  发言人: ${speakerStr}`;
+                    // 自动填入第一个发言人
+                    if (top.speakers.length === 1 || (top.speakers.length >= 1 && top.speakers[0]
+                            .length <= 10)) {
+                        document.getElementById('speakerName').value = top.speakers[0];
+                    }
+                }
+            } else {
+                detectedBadge.textContent = '未能自动识别';
+                detectedBadge.className = 'detected-badge show warn';
+            }
+        });
+
+        function detectFormats(lines) {
+            const results = [];
+            const speakers = new Map();
+
+            let colonMatch = 0;
+            for (const line of lines) {
+                const m = line.match(/^([^\s:：【\[（(]{1,20})[：:]\s*(.+)/);
+                if (m) {
+                    colonMatch++;
+                    speakers.set(m[1], (speakers.get(m[1]) || 0) + 1);
+                }
+            }
+            if (colonMatch > lines.length * 0.1) {
+                const sorted = [...speakers.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+                results.push({ type: 'colon', name: '"名字: 内容" 格式', speakers: sorted });
+            }
+
+            let wechatMatch = 0;
+            for (const line of lines) {
+                if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(line) || /^\d{1,2}:\d{2}/.test(line) || /^-{10,}/.test(
+                        line))
+                    wechatMatch++;
+            }
+            if (wechatMatch > 5) results.push({ type: 'wechat', name: '微信导出格式', speakers: [] });
+
+            let qqMatch = 0;
+            for (const line of lines) {
+                if (/^\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2}/.test(line)) qqMatch++;
+            }
+            if (qqMatch > 5) results.push({ type: 'qq', name: 'QQ导出格式', speakers: [] });
+
+            return results;
+        }
+
+        // Main Process
+        processBtn.addEventListener('click', async () => {
+            if (!fileContent) return;
+            const speaker = document.getElementById('speakerName').value.trim();
+            if (!speaker) { showError('请输入要提取的发言人名称');
+                return; }
+            showError('');
+            hideInfo();
+
+            processBtn.disabled = true;
+            progressWrap.style.display = 'block';
+            statsGrid.style.display = 'none';
+            previewWrap.style.display = 'none';
+            downloadWrap.style.display = 'none';
+            copyBtn.style.display = 'none';
+            splitDownloadBtn.style.display = 'none';
+            splitListBtn.style.display = 'none';
+            splitList.style.display = 'none';
+            splitChunks = [];
+
+            await sleep(20);
+
+            try {
+                const lines = fileContent.split('\n');
+                const totalLines = lines.length;
+                const formatType = document.getElementById('formatType').value;
+                const minLen = parseInt(document.getElementById('minLen').value) || 0;
+                const maxLines = parseInt(document.getElementById('maxLines').value) || 0;
+                const dedupThreshold = parseInt(document.getElementById('dedupThreshold').value);
+                const trimMode = document.getElementById('trimMode').value;
+                const trimRatio = parseInt(document.getElementById('trimRatio').value) || 100;
+                const trimPosition = document.getElementById('trimPosition').value;
+
+                const opts = {
+                    removeMeta: document.getElementById('opt_removeMeta').checked,
+                    removeEmoji: document.getElementById('opt_removeEmoji').checked,
+                    collapseSpace: document.getElementById('opt_collapseSpace').checked,
+                    removeName: document.getElementById('opt_removeName').checked,
+                    removeBracket: document.getElementById('opt_removeBracket').checked,
+                };
+
+                updateProgress(3, '正在解析格式...');
+                await sleep(10);
+
+                // Phase 1: Parse messages
+                let messages = parseMessages(lines, speaker, formatType, totalLines);
+                updateProgress(40, `已提取 ${messages.length.toLocaleString()} 条发言，正在优化...`);
+                await sleep(10);
+
+                // Phase 2: Apply optimizations
+                messages = applyOptimizations(messages, opts, minLen);
+                updateProgress(55, `优化完成（${messages.length.toLocaleString()} 条），正在去重...`);
+                await sleep(10);
+
+                // Phase 3: Deduplication (improved)
+                if (dedupThreshold > 0 && dedupThreshold < 100) {
+                    const before = messages.length;
+                    messages = deduplicateImproved(messages, dedupThreshold / 100, (pct) => {
+                        updateProgress(55 + Math.round(pct * 20),
+                            `去重中... ${Math.round(pct*100)}%`);
+                    });
+                    const dedupRemoved = before - messages.length;
+                    updateProgress(75,
+                        `去重完成：${before.toLocaleString()} → ${messages.length.toLocaleString()}（移除 ${dedupRemoved.toLocaleString()} 条）`
+                        );
+                    await sleep(10);
+                }
+
+                // Phase 4: Corpus trimming (NEW)
+                if (trimMode !== 'none' && trimRatio < 100 && messages.length > 0) {
+                    const before = messages.length;
+                    updateProgress(78,
+                    `正在执行语料裁剪（模式：${trimMode === 'diversity' ? '差异值筛选' : trimMode === 'position' ? '按位置' : '随机'}，保留 ${trimRatio}%）...`);
+                    await sleep(10);
+                    messages = trimCorpus(messages, trimMode, trimRatio / 100, trimPosition, (pct) => {
+                        updateProgress(78 + Math.round(pct * 10),
+                            `裁剪中... ${Math.round(pct*100)}%`);
+                    });
+                    updateProgress(88,
+                        `裁剪完成：${before.toLocaleString()} → ${messages.length.toLocaleString()} 条`);
+                    await sleep(10);
+                }
+
+                // Phase 5: Limit
+                if (maxLines > 0 && messages.length > maxLines) {
+                    messages = messages.slice(0, maxLines);
+                    updateProgress(90, `已限制为前 ${maxLines.toLocaleString()} 条`);
+                    await sleep(10);
+                }
+
+                updateProgress(93, '生成输出...');
+                await sleep(10);
+
+                resultLines = messages;
+                const outputText = messages.join('\n');
+
+                // Stats
+                const origSize = new Blob([fileContent]).size;
+                const outSize = new Blob([outputText]).size;
+                const ratio = Math.round((1 - outSize / Math.max(origSize, 1)) * 100);
+
+                document.getElementById('s-orig-size').textContent = formatSize(origSize);
+                document.getElementById('s-out-size').textContent = formatSize(outSize);
+                document.getElementById('s-lines').textContent = messages.length.toLocaleString();
+                document.getElementById('s-ratio').textContent = ratio + '%';
+
+                statsGrid.style.display = 'grid';
+                previewWrap.style.display = 'block';
+                previewArea.textContent = messages.slice(0, 200).join('\n');
+                downloadWrap.style.display = 'block';
+
+                // Show copy button for reasonably sized results
+                if (outSize < 2 * 1024 * 1024 && messages.length > 0) {
+                    copyBtn.style.display = '';
+                }
+
+                // Show split button if large
+                if (outSize > 4.5 * 1024 * 1024) {
+                    splitDownloadBtn.style.display = '';
+                    splitListBtn.style.display = '';
+                    // Pre-compute split chunks
+                    splitChunks = computeSplitChunks(messages, 4.5 * 1024 * 1024);
+                    updateSplitListUI();
+                }
+
+                updateProgress(100,
+                    `✅ 完成！共保留 ${messages.length.toLocaleString()} 条发言，压缩率 ${ratio}%`);
+                showInfo(`处理成功！语料共 ${messages.length.toLocaleString()} 条，可直接用于 AI 训练。`);
+
+            } catch (e) {
+                showError('处理出错: ' + e.message);
+                updateProgress(0, '');
+                progressWrap.style.display = 'none';
+            }
+
+            processBtn.disabled = false;
+        });
+
+        // ==================== Improved Deduplication ====================
+        function deduplicateImproved(messages, threshold, progressCallback) {
+            if (threshold >= 1 || messages.length <= 1) return messages;
+
+            const result = [];
+            const total = messages.length;
+            let lastProgress = 0;
+
+            // For performance: use a sliding window of recently seen messages
+            // Short messages: exact match check
+            // All messages: character 3-gram Jaccard similarity
+            const seenShort = new Set(); // exact strings for short messages
+            const seenLong = []; // {msg, grams} for similarity comparison
+            const MAX_COMPARISON_WINDOW = 300; // compare against last N long messages
+
+            for (let i = 0; i < total; i++) {
+                const msg = messages[i];
+
+                // Report progress periodically
+                const currentProgress = Math.floor(i / total * 100) / 100;
+                if (currentProgress - lastProgress > 0.05 && progressCallback) {
+                    progressCallback(currentProgress);
+                    lastProgress = currentProgress;
+                }
+
+                const isShort = msg.length <= 18;
+
+                if (isShort) {
+                    // Exact dedup for short messages
+                    if (seenShort.has(msg)) continue;
+                    seenShort.add(msg);
+                    result.push(msg);
+                    // Also add to long list for comparison with medium messages
+                    if (seenLong.length < MAX_COMPARISON_WINDOW * 2) {
+                        seenLong.push({ msg, grams: getCharTrigrams(msg) });
+                    }
+                } else {
+                    // For longer messages, use similarity comparison
+                    const msgGrams = getCharTrigrams(msg);
+                    let isDup = false;
+
+                    // Compare against recent messages in the window
+                    const startIdx = Math.max(0, seenLong.length - MAX_COMPARISON_WINDOW);
+                    for (let j = seenLong.length - 1; j >= startIdx; j--) {
+                        const sim = jaccardSimilarity(msgGrams, seenLong[j].grams);
+                        // Also check length ratio as a quick filter
+                        const lenRatio = Math.min(msg.length, seenLong[j].msg.length) / Math.max(msg.length,
+                            seenLong[j].msg.length);
+                        const adjustedThreshold = threshold * (0.7 + 0.3 * lenRatio); // Be more lenient when lengths differ significantly
+
+                        if (sim >= adjustedThreshold) {
+                            isDup = true;
+                            break;
+                        }
+                    }
+
+                    if (!isDup) {
+                        result.push(msg);
+                        seenLong.push({ msg, grams: msgGrams });
+                        // Keep seenLong manageable
+                        if (seenLong.length > MAX_COMPARISON_WINDOW * 3) {
+                            seenLong.splice(0, seenLong.length - MAX_COMPARISON_WINDOW * 2);
+                        }
+                    }
+                }
+            }
+
+            if (progressCallback) progressCallback(1);
+            return result;
+        }
+
+        function getCharTrigrams(str) {
+            const grams = new Set();
+            // Use character-level trigrams (works well for Chinese)
+            const s = str.replace(/\s+/g, ''); // normalize whitespace
+            if (s.length < 3) {
+                // For very short strings, use bigrams or single chars
+                for (let i = 0; i < s.length; i++) {
+                    grams.add(s[i]);
+                    if (i < s.length - 1) grams.add(s.slice(i, i + 2));
+                }
+            } else {
+                for (let i = 0; i < s.length - 2; i++) {
+                    grams.add(s.slice(i, i + 3));
+                }
+            }
+            return grams;
+        }
+
+        function jaccardSimilarity(setA, setB) {
+            if (setA.size === 0 && setB.size === 0) return 1;
+            if (setA.size === 0 || setB.size === 0) return 0;
+            let intersection = 0;
+            for (const item of setA) {
+                if (setB.has(item)) intersection++;
+            }
+            const union = setA.size + setB.size - intersection;
+            return union === 0 ? 0 : intersection / union;
+        }
+
+        // ==================== Corpus Trimming ====================
+        function trimCorpus(messages, mode, ratio, position, progressCallback) {
+            if (ratio >= 1 || messages.length <= 1) return messages;
+            if (ratio <= 0) return [];
+
+            const targetCount = Math.max(1, Math.round(messages.length * ratio));
+            const total = messages.length;
+
+            if (targetCount >= total) return messages;
+
+            if (progressCallback) progressCallback(0.1);
+
+            switch (mode) {
+                case 'position':
+                    return trimByPosition(messages, targetCount, position, progressCallback);
+
+                case 'diversity':
+                    return trimByDiversity(messages, targetCount, progressCallback);
+
+                case 'random':
+                    return trimRandom(messages, targetCount, progressCallback);
+
+                default:
+                    return messages;
+            }
+        }
+
+        function trimByPosition(messages, targetCount, position, progressCallback) {
+            const total = messages.length;
+            let result;
+
+            switch (position) {
+                case 'head':
+                    // 保留前 targetCount 条
+                    result = messages.slice(0, targetCount);
+                    break;
+                case 'tail':
+                    // 保留后 targetCount 条（即去掉前面的部分）
+                    result = messages.slice(total - targetCount);
+                    break;
+                case 'middle':
+                    // 保留中间 targetCount 条
+                    const start = Math.floor((total - targetCount) / 2);
+                    result = messages.slice(start, start + targetCount);
+                    break;
+                default:
+                    result = messages.slice(0, targetCount);
+            }
+
+            if (progressCallback) progressCallback(1);
+            return result;
+        }
+
+        function trimRandom(messages, targetCount, progressCallback) {
+            // Fisher-Yates partial shuffle to select random subset
+            const indices = Array.from({ length: messages.length }, (_, i) => i);
+            // Partial shuffle: only need first targetCount elements randomized
+            for (let i = 0; i < targetCount; i++) {
+                const j = i + Math.floor(Math.random() * (indices.length - i));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+                if (progressCallback && i % Math.max(1, Math.floor(targetCount / 10)) === 0) {
+                    progressCallback(i / targetCount);
+                }
+            }
+            const selected = indices.slice(0, targetCount).sort((a, b) => a - b);
+            const result = selected.map(i => messages[i]);
+            if (progressCallback) progressCallback(1);
+            return result;
+        }
+
+        function trimByDiversity(messages, targetCount, progressCallback) {
+            // Greedy Maximal Marginal Relevance (MMR) style selection
+            // Goal: select 'targetCount' messages that maximize diversity
+            // Strategy: Use character trigram features, greedy selection
+            // For efficiency with large corpora: batch-based approach
+
+            const total = messages.length;
+
+            if (targetCount >= total) return messages;
+
+            // For very large corpora, use a two-phase approach:
+            // Phase 1: Quick pre-filtering using length stratification
+            // Phase 2: Greedy diversity selection on pre-filtered set
+
+            const MAX_DIVERSITY_POOL = 8000; // Max messages to run greedy selection on
+            let pool = messages;
+            let poolIndices = Array.from({ length: messages.length }, (_, i) => i);
+
+            if (total > MAX_DIVERSITY_POOL) {
+                // Pre-filter: stratified sampling by length to get a diverse candidate pool
+                const buckets = new Map(); // length bucket -> indices
+                const bucketSize = Math.ceil(total / 200); // ~200 buckets
+
+                for (let i = 0; i < total; i++) {
+                    const bucket = Math.floor(messages[i].length / bucketSize);
+                    if (!buckets.has(bucket)) buckets.set(bucket, []);
+                    buckets.get(bucket).push(i);
+                }
+
+                // Sample proportionally from each bucket
+                poolIndices = [];
+                const sampleRatio = MAX_DIVERSITY_POOL / total;
+                for (const [, indices] of buckets) {
+                    const nSample = Math.max(1, Math.round(indices.length * sampleRatio));
+                    // Random sample from this bucket
+                    const shuffled = [...indices];
+                    for (let i = 0; i < Math.min(nSample, shuffled.length); i++) {
+                        const j = i + Math.floor(Math.random() * (shuffled.length - i));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    poolIndices.push(...shuffled.slice(0, nSample));
+                }
+                // Limit pool size
+                if (poolIndices.length > MAX_DIVERSITY_POOL) {
+                    poolIndices = poolIndices.slice(0, MAX_DIVERSITY_POOL);
+                }
+                pool = poolIndices.map(i => messages[i]);
+            }
+
+            if (progressCallback) progressCallback(0.2);
+
+            // Pre-compute trigram sets for the pool
+            const poolData = pool.map((msg, idx) => ({
+                originalIndex: poolIndices.length > 0 ? poolIndices[idx] : idx,
+                msg,
+                grams: getCharTrigrams(msg),
+            }));
+
+            if (progressCallback) progressCallback(0.35);
+
+            // Greedy diversity selection
+            const selected = [];
+            const selectedGrams = [];
+
+            // Start with a random message
+            const firstIdx = Math.floor(Math.random() * poolData.length);
+            selected.push(poolData[firstIdx]);
+            selectedGrams.push(poolData[firstIdx].grams);
+            poolData.splice(firstIdx, 1);
+
+            if (progressCallback) progressCallback(0.4);
+
+            // Greedily pick the message most different from all selected
+            const batchSize = Math.max(1, Math.floor(targetCount / 20));
+            let lastReport = 0;
+
+            while (selected.length < targetCount && poolData.length > 0) {
+                const progressInPhase = selected.length / targetCount;
+                if (progressInPhase - lastReport > 0.05 && progressCallback) {
+                    progressCallback(0.4 + progressInPhase * 0.55);
+                    lastReport = progressInPhase;
+                }
+
+                // For performance: only compare against a subset of poolData
+                const comparePoolSize = Math.min(poolData.length, 600);
+                let bestIdx = 0;
+                let bestMinSim = Infinity;
+                let bestAvgSim = Infinity;
+
+                // Sample-based search for efficiency when pool is large
+                const step = poolData.length > comparePoolSize ? Math.floor(poolData.length / comparePoolSize) : 1;
+                const compareCount = Math.min(poolData.length, comparePoolSize);
+
+                for (let i = 0; i < compareCount; i++) {
+                    const actualIdx = i * step;
+                    if (actualIdx >= poolData.length) break;
+
+                    const candidate = poolData[actualIdx];
+                    let minSim = 1;
+                    let sumSim = 0;
+                    const compareWindow = Math.min(selectedGrams.length, 100);
+                    const selStep = selectedGrams.length > 100 ? Math.floor(selectedGrams.length / 100) : 1;
+
+                    for (let j = selectedGrams.length - 1; j >= 0 && (selectedGrams.length - 1 - j) < compareWindow; j -=
+                        selStep) {
+                        const sim = jaccardSimilarity(candidate.grams, selectedGrams[j]);
+                        if (sim < minSim) minSim = sim;
+                        sumSim += sim;
+                        if (minSim < bestMinSim) break; // Early exit if already worse
+                    }
+                    const avgSim = sumSim / Math.min(compareWindow, selectedGrams.length);
+
+                    // Prefer messages with lower similarity to selected set
+                    if (minSim < bestMinSim || (minSim === bestMinSim && avgSim < bestAvgSim)) {
+                        bestMinSim = minSim;
+                        bestAvgSim = avgSim;
+                        bestIdx = actualIdx;
+                    }
+                }
+
+                selected.push(poolData[bestIdx]);
+                selectedGrams.push(poolData[bestIdx].grams);
+                poolData.splice(bestIdx, 1);
+            }
+
+            // Map back to original order for consistency
+            const result = selected
+                .map(d => d.originalIndex)
+                .sort((a, b) => a - b)
+                .map(i => messages[i]);
+
+            if (progressCallback) progressCallback(1);
+            return result;
+        }
+
+        // ==================== Split Download ====================
+        function computeSplitChunks(messages, maxChunkSize) {
+            const chunks = [];
+            let current = [];
+            let currentSize = 0;
+
+            for (const line of messages) {
+                const lineBytes = new Blob([line + '\n']).size;
+                if (currentSize + lineBytes > maxChunkSize && current.length > 0) {
+                    chunks.push(current);
+                    current = [];
+                    currentSize = 0;
+                }
+                current.push(line);
+                currentSize += lineBytes;
+            }
+            if (current.length > 0) {
+                chunks.push(current);
+            }
+            return chunks;
+        }
+
+        function updateSplitListUI() {
+            splitList.innerHTML = '';
+            if (splitChunks.length <= 1) {
+                splitList.style.display = 'none';
+                splitListBtn.style.display = 'none';
+                return;
+            }
+            splitChunks.forEach((chunk, i) => {
+                const chunkText = chunk.join('\n');
+                const size = new Blob([chunkText]).size;
+                const div = document.createElement('div');
+                div.className = 'split-list-item';
+                div.innerHTML =
+                    `<span><span class="part-name">📄 Part ${i+1}/${splitChunks.length}</span> — ${chunk.length.toLocaleString()} 条</span><span class="part-size">${formatSize(size)}</span>`;
+                div.addEventListener('click', () => {
+                    downloadText(chunkText,
+                        `${fileName}_${document.getElementById('speakerName').value}_part${i+1}.txt`);
+                });
+                splitList.appendChild(div);
+            });
+            splitList.style.display = 'block';
+        }
+
+        splitListBtn.addEventListener('click', () => {
+            if (splitList.style.display === 'none' || splitList.style.display === '') {
+                updateSplitListUI();
+                splitList.style.display = 'block';
+            } else {
+                splitList.style.display = 'none';
+            }
+        });
+
+        splitDownloadBtn.addEventListener('click', async () => {
+            if (splitChunks.length <= 1) {
+                // Fallback: download as single file
+                downloadText(resultLines.join('\n'),
+                    `${fileName}_${document.getElementById('speakerName').value}_提取.txt`);
+                return;
+            }
+            showInfo(`正在逐个触发下载 ${splitChunks.length} 个文件，请允许浏览器多次下载...`);
+            for (let i = 0; i < splitChunks.length; i++) {
+                const chunkText = splitChunks[i].join('\n');
+                downloadText(chunkText,
+                    `${fileName}_${document.getElementById('speakerName').value}_part${i+1}.txt`);
+                await sleep(350); // Delay between downloads to avoid browser blocking
+            }
+            showInfo(`✅ 已触发 ${splitChunks.length} 个文件的下载`);
+        });
+
+        // ==================== Parse Messages (mostly unchanged) ====================
+        function parseMessages(lines, speaker, formatType, totalLines) {
+            const messages = [];
+
+            if (formatType === 'auto' || formatType === 'colon') {
+                let currentSpeaker = null;
+                let currentContent = [];
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (i % 50000 === 0) updateProgress(3 + Math.round(i / totalLines * 30),
+                        `解析第 ${i.toLocaleString()} 行...`);
+
+                    const m = line.match(/^([^\n:：【\[（(]{1,30})[：:]\s*([\s\S]*)/);
+                    if (m) {
+                        if (currentSpeaker === speaker && currentContent.length > 0) {
+                            const txt = currentContent.join(' ').trim();
+                            if (txt) messages.push(txt);
+                        }
+                        currentSpeaker = m[1].trim();
+                        currentContent = [m[2].trim()];
+                    } else if (currentSpeaker && line.trim()) {
+                        currentContent.push(line.trim());
+                    } else if (!line.trim() && currentSpeaker === speaker && currentContent.length > 0) {
+                        const txt = currentContent.join(' ').trim();
+                        if (txt) messages.push(txt);
+                        currentContent = [];
+                    }
+                }
+                if (currentSpeaker === speaker && currentContent.length > 0) {
+                    const txt = currentContent.join(' ').trim();
+                    if (txt) messages.push(txt);
+                }
+                if (messages.length > 0) return messages;
+            }
+
+            if (formatType === 'auto' || formatType === 'wechat') {
+                const wcMessages = [];
+                let i = 0;
+                while (i < lines.length) {
+                    const line = lines[i].trim();
+                    const m1 = line.match(/^(\d{4}[-/]\d{2}[-/]\d{2}\s+\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)/);
+                    if (m1) {
+                        const name = m1[2].trim();
+                        let content = [];
+                        i++;
+                        while (i < lines.length && !/^(\d{4}[-/]\d{2}[-/]\d{2}\s+\d{1,2}:\d{2})|^-{10,}/.test(lines[i]
+                                .trim())) {
+                            if (lines[i].trim()) content.push(lines[i].trim());
+                            i++;
+                        }
+                        if (name === speaker || name.startsWith(speaker)) {
+                            if (content.length > 0) wcMessages.push(content.join(' '));
+                        }
+                        continue;
+                    }
+                    i++;
+                }
+                if (wcMessages.length > 10) return wcMessages;
+            }
+
+            if (formatType === 'auto' || formatType === 'qq') {
+                const qqMessages = [];
+                let i = 0;
+                while (i < lines.length) {
+                    const line = lines[i].trim();
+                    const m = line.match(/^\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2} (.+)/);
+                    if (m) {
+                        const nameRaw = m[1].replace(/\(\d+\)$/, '').trim();
+                        let content = [];
+                        i++;
+                        while (i < lines.length && !/^\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2}/.test(lines[i].trim())) {
+                            if (lines[i].trim()) content.push(lines[i].trim());
+                            i++;
+                        }
+                        if (nameRaw === speaker || nameRaw.includes(speaker)) {
+                            if (content.length > 0) qqMessages.push(content.join(' '));
+                        }
+                        continue;
+                    }
+                    i++;
+                }
+                if (qqMessages.length > 10) return qqMessages;
+            }
+
+            if (formatType === 'custom') {
+                const regexStr = document.getElementById('customRegex').value.trim();
+                if (!regexStr) throw new Error('请输入自定义正则表达式');
+                const regex = new RegExp(regexStr);
+                let currentSpeaker = null,
+                    currentContent = [];
+                for (const line of lines) {
+                    const m = line.match(regex);
+                    if (m) {
+                        if (currentSpeaker === speaker && currentContent.length > 0) {
+                            messages.push(currentContent.join(' ').trim());
+                        }
+                        currentSpeaker = m[1] ? m[1].trim() : null;
+                        currentContent = [];
+                    } else if (currentSpeaker && line.trim()) {
+                        currentContent.push(line.trim());
+                    }
+                }
+                if (currentSpeaker === speaker && currentContent.length > 0) {
+                    messages.push(currentContent.join(' ').trim());
+                }
+                return messages;
+            }
+
+            // Fallback
+            for (const line of lines) {
+                const m = line.match(new RegExp(`^${escapeRegex(speaker)}[：:]\\s*(.+)`));
+                if (m) messages.push(m[1].trim());
+            }
+            return messages;
+        }
+
+        function applyOptimizations(messages, opts, minLen) {
+            return messages
+                .map(msg => {
+                    let s = msg;
+                    if (opts.removeMeta) {
+                        s = s.replace(/^\[?\d{1,4}[-/.:]\d{1,2}[-/.:]\d{1,4}\s*\d{0,2}:?\d{0,2}:?\d{0,2}\]?\s*/g,
+                            '');
+                    }
+                    if (opts.removeBracket) {
+                        s = s.replace(/[\[【（(][^\]】）)]{1,30}[\]】）)]/g, '').trim();
+                    }
+                    if (opts.removeEmoji) {
+                        s = s.replace(
+                            /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F1FF}\u{1F200}-\u{1F2FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/gu,
+                            '').trim();
+                    }
+                    if (opts.collapseSpace) {
+                        s = s.replace(/\s{2,}/g, ' ').trim();
+                    }
+                    return s;
+                })
+                .filter(msg => msg.length >= minLen);
+        }
+
+        // ==================== Download & Copy ====================
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const text = resultLines.join('\n');
+            downloadText(text, `${fileName}_${document.getElementById('speakerName').value}_提取.txt`);
+        });
+
+        copyBtn.addEventListener('click', async () => {
+            const text = resultLines.join('\n');
+            try {
+                await navigator.clipboard.writeText(text);
+                showInfo('✅ 已复制到剪贴板！共 ' + resultLines.length.toLocaleString() + ' 条');
+            } catch (e) {
+                // Fallback
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showInfo('✅ 已复制到剪贴板！（使用备用方案）');
+            }
+        });
+
+        function downloadText(text, name) {
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            // Delay revoke to ensure download starts
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        // ==================== Utilities ====================
+        function updateProgress(pct, msg) {
+            progressBar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+            progressText.textContent = msg;
+        }
+
+        function showError(msg) {
+            errorAlert.style.display = msg ? 'block' : 'none';
+            errorAlert.textContent = msg;
+            if (msg) infoAlert.style.display = 'none';
+        }
+
+        function showInfo(msg) {
+            infoAlert.style.display = msg ? 'block' : 'none';
+            infoAlert.textContent = msg;
+            if (msg) errorAlert.style.display = 'none';
+        }
+
+        function hideInfo() {
+            infoAlert.style.display = 'none';
+            errorAlert.style.display = 'none';
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + 'B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+            return (bytes / 1024 / 1024).toFixed(2) + 'MB';
+        }
+
+        function escapeRegex(s) {
+            return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function sleep(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
+    </script>
+</body>
+</html>
