@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人小工具集 · 工具箱</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0f;
+    --surface: rgba(255,255,255,0.04);
+    --surface-hover: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.18);
+    --text: #e8e6e3;
+    --text-dim: rgba(255,255,255,0.45);
+    --accent: #6c5ce7;
+    --accent2: #00cec9;
+    --accent3: #fd79a8;
+    --radius: 16px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+
+  /* ─── Animated Grid Background ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(rgba(108,92,231,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,92,231,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(108,92,231,0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0,206,201,0.08), transparent),
+      radial-gradient(ellipse 50% 30% at 20% 60%, rgba(253,121,168,0.06), transparent);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── Floating Particles ─── */
+  .particles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0;
+    animation: float 12s infinite ease-in-out;
+  }
+  .particle:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; background: var(--accent); }
+  .particle:nth-child(2) { left: 25%; top: 70%; animation-delay: 2s; background: var(--accent2); width: 4px; height: 4px; }
+  .particle:nth-child(3) { left: 50%; top: 40%; animation-delay: 4s; background: var(--accent3); }
+  .particle:nth-child(4) { left: 75%; top: 15%; animation-delay: 6s; background: var(--accent2); }
+  .particle:nth-child(5) { left: 85%; top: 80%; animation-delay: 8s; background: var(--accent); width: 2px; height: 2px; }
+  .particle:nth-child(6) { left: 40%; top: 90%; animation-delay: 1s; background: var(--accent3); }
+  .particle:nth-child(7) { left: 65%; top: 55%; animation-delay: 3s; background: var(--accent2); width: 5px; height: 5px; }
+  .particle:nth-child(8) { left: 15%; top: 45%; animation-delay: 5s; background: var(--accent); }
+  .particle:nth-child(9) { left: 90%; top: 30%; animation-delay: 7s; background: var(--accent3); }
+  .particle:nth-child(10) { left: 55%; top: 10%; animation-delay: 9s; background: var(--accent2); }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0; }
+    10% { opacity: 0.6; }
+    50% { transform: translateY(-40px) scale(1.4); opacity: 0.2; }
+    90% { opacity: 0.4; }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    padding: 80px 0 60px;
+    text-align: center;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(108,92,231,0.12);
+    border: 1px solid rgba(108,92,231,0.25);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.8s 0.2s both;
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .hero-title {
+    font-size: clamp(36px, 7vw, 68px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 40%, var(--accent) 70%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 20px;
+    animation: fadeUp 0.8s 0.4s both;
+  }
+  .hero-sub {
+    font-size: 18px;
+    color: var(--text-dim);
+    max-width: 580px;
+    margin: 0 auto 32px;
+    font-weight: 300;
+    animation: fadeUp 0.8s 0.6s both;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    animation: fadeUp 0.8s 0.8s both;
+  }
+  .hero-stat {
+    text-align: center;
+  }
+  .hero-stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-stat-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── FILTER ─── */
+  .filter-bar {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 48px;
+    animation: fadeUp 0.8s 1s both;
+  }
+  .filter-btn {
+    padding: 8px 20px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .filter-btn:hover {
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+  .filter-btn.active {
+    background: rgba(108,92,231,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ─── TOOL GRID ─── */
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+    padding-bottom: 80px;
+  }
+
+  .tool-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: cardIn 0.5s forwards;
+  }
+  .tool-card:nth-child(1) { animation-delay: 0.05s; }
+  .tool-card:nth-child(2) { animation-delay: 0.1s; }
+  .tool-card:nth-child(3) { animation-delay: 0.15s; }
+  .tool-card:nth-child(4) { animation-delay: 0.2s; }
+  .tool-card:nth-child(5) { animation-delay: 0.25s; }
+  .tool-card:nth-child(6) { animation-delay: 0.3s; }
+  .tool-card:nth-child(7) { animation-delay: 0.35s; }
+  .tool-card:nth-child(8) { animation-delay: 0.4s; }
+
+  @keyframes cardIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .tool-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .tool-card:hover::before { opacity: 1; }
+  .tool-card:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(108,92,231,0.08);
+  }
+
+  .tool-card-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+    transition: transform 0.3s;
+  }
+  .tool-card:hover .tool-card-icon { transform: scale(1.08); }
+
+  .tool-card-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+  .tool-card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.65;
+    margin-bottom: 20px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .tool-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tool-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .tool-tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 100px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #8b7cf7);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.25s;
+    flex-shrink: 0;
+  }
+  .tool-btn:hover {
+    transform: translateX(2px);
+    box-shadow: 0 4px 20px rgba(108,92,231,0.35);
+  }
+  .tool-btn-arrow {
+    transition: transform 0.25s;
+  }
+  .tool-btn:hover .tool-btn-arrow {
+    transform: translateX(3px);
+  }
+
+  /* ─── FOOTER ─── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0;
+    text-align: center;
+  }
+  footer p {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  footer a:hover { text-decoration: underline; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    header { padding: 48px 0 32px; }
+    .hero-sub { font-size: 15px; }
+    .hero-stats { gap: 24px; }
+    .tool-grid { grid-template-columns: 1fr; gap: 16px; }
+    .tool-card { padding: 22px; }
+  }
+  @media (max-width: 480px) {
+    .filter-bar { gap: 6px; }
+    .filter-btn { font-size: 12px; padding: 6px 14px; }
+    .hero-stats { flex-wrap: wrap; gap: 16px; }
+  }
+
+  /* ─── scrollbar ─── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+</style>
+</head>
+<body>
+
+<div class="particles">
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div>
+</div>
+
+<div class="container">
+
+  <header>
+    <div class="badge"><span class="badge-dot"></span> 纯浏览器端 · 文件不上传</div>
+    <h1 class="hero-title">个人小工具集</h1>
+    <p class="hero-sub">随手写的小工具，解决日常零碎需求 —— 纯静态 HTML，打开即用，无需安装任何东西。</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-num">8</div><div class="hero-stat-label">小工具</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">100%</div><div class="hero-stat-label">本地运行</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">0</div><div class="hero-stat-label">依赖安装</div></div>
+    </div>
+  </header>
+
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">全部</button>
+    <button class="filter-btn" data-filter="pdf">PDF</button>
+    <button class="filter-btn" data-filter="text">文本</button>
+    <button class="filter-btn" data-filter="image">图片</button>
+    <button class="filter-btn" data-filter="other">其他</button>
+  </div>
+
+  <div class="tool-grid" id="toolGrid">
+    <!-- 卡片由 JS 动态渲染 -->
+  </div>
+
+  <footer>
+    <p>随手用 AI 写的实用小工具 · <a href="https://github.com/ct-yx/Personal-use-gadget" target="_blank">GitHub 仓库</a></p>
+  </footer>
+
+</div>
+
+<script>
+const tools = [
+  {
+    id: 'pdf-merger',
+    title: 'PDF 合成工具',
+    desc: '将多个 PDF 文件合并为一个。支持拖拽排序、可拖放调整顺序，实时显示页数和大小，纯浏览器处理不上传服务器。',
+    icon: '📄',
+    iconBg: 'rgba(108,92,231,0.15)',
+    file: 'pdf-merger.html',
+    tags: ['PDF', '合并'],
+    filter: 'pdf'
+  },
+  {
+    id: 'PDFchange',
+    title: 'PDF 页面重排工具',
+    desc: '将PDF页面重新排列，支持一页两张（纵向/横向）和一页四张（2×2）三种布局，方便打印或阅读。',
+    icon: '🔀',
+    iconBg: 'rgba(0,206,201,0.15)',
+    file: 'PDFchange.html',
+    tags: ['PDF', '重排'],
+    filter: 'pdf'
+  },
+  {
+    id: 'chat-filter',
+    title: '对话提取 · 语料压缩工具',
+    desc: '从聊天记录中提取指定发言人的内容。支持智能格式检测、相似去重、语料裁剪、表情符号移除等，专为 AI 语料准备设计。',
+    icon: '💬',
+    iconBg: 'rgba(253,121,168,0.15)',
+    file: 'chat-filter-tool.html',
+    tags: ['文本', '语料'],
+    filter: 'text'
+  },
+  {
+    id: 'partition',
+    title: '浏览器文件分割工具',
+    desc: '将大文本文件按字符数或字节大小分割成多个小文件。支持拖拽上传、智能切割点（避免乱码），适合处理超大日志或数据集。',
+    icon: '✂️',
+    iconBg: 'rgba(255,200,50,0.15)',
+    file: 'Partition1.0.html',
+    tags: ['文本', '分割'],
+    filter: 'text'
+  },
+  {
+    id: 'txt-epub',
+    title: 'MD → EPUB 合成器',
+    desc: '将多个 Markdown 文件合并并导出为 EPUB 电子书。支持拖拽排序、按标题分章、添加封面和目录，一键生成标准 EPUB 文件。',
+    icon: '📚',
+    iconBg: 'rgba(245,158,11,0.15)',
+    file: 'txt-epub-manger.html',
+    tags: ['电子书', '转换'],
+    filter: 'text'
+  },
+  {
+    id: 'chapter',
+    title: 'TXT 智能整理专家',
+    desc: '智能清理和整理 TXT 文本，自动识别章节结构、去除冗余空白、规范格式化，尤其适合处理网文或长篇文档。',
+    icon: '📝',
+    iconBg: 'rgba(72,202,228,0.15)',
+    file: '章节整理工具.html',
+    tags: ['文本', '整理'],
+    filter: 'text'
+  },
+  {
+    id: 'split-screenshot',
+    title: '长截图 9:16 分割工具',
+    desc: '将长截图按照 9:16 比例自动切割成多张标准手机截图。支持预览每张切片、可单独下载或打包 ZIP 下载。',
+    icon: '🖼️',
+    iconBg: 'rgba(52,199,89,0.15)',
+    file: 'split-screenshot.html',
+    tags: ['图片', '分割'],
+    filter: 'image'
+  },
+  {
+    id: 'hotspot-key',
+    title: 'HOTSPOT KEY',
+    desc: '基于每日时间戳的动态密码生成器。以当天 06:00 为基准自动更新密码，点击即可复制，带倒计时和进度条。',
+    icon: '🔑',
+    iconBg: 'rgba(255,159,10,0.15)',
+    file: 'hotspot_key.html',
+    tags: ['密码', '实用'],
+    filter: 'other'
+  }
+];
+
+function renderTools(filter = 'all') {
+  const grid = document.getElementById('toolGrid');
+  const filtered = filter === 'all' ? tools : tools.filter(t => t.filter === filter);
+  grid.innerHTML = filtered.map(t => `
+    <div class="tool-card" data-filter="${t.filter}">
+      <div class="tool-card-icon" style="background:${t.iconBg}">${t.icon}</div>
+      <div class="tool-card-title">${t.title}</div>
+      <div class="tool-card-desc">${t.desc}</div>
+      <div class="tool-card-footer">
+        <div class="tool-tags">
+          ${t.tags.map(tag => `<span class="tool-tag">${tag}</span>`).join('')}
+        </div>
+        <a href="${t.file}" class="tool-btn" target="_blank" onclick="event.stopPropagation()">
+          打开 <span class="tool-btn-arrow">→</span>
+        </a>
+      </div>
+    </div>
+  `).join('');
+
+  // 点击整个卡片也能打开
+  document.querySelectorAll('.tool-card').forEach((card, i) => {
+    card.addEventListener('click', () => {
+      const btn = card.querySelector('.tool-btn');
+      if (btn) window.open(btn.href, '_blank');
+    });
+  });
+}
+
+// 过滤切换
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTools(btn.dataset.filter);
+  });
+});
+
+// 重新触发卡片动画
+renderTools();
+</script>
+
+</body>
+</html>
