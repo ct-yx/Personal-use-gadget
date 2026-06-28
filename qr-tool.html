@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二维码工具箱 · 生成 / 解码</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e0e12; --surface: #17171d; --surface2: #1f1f28;
+    --border: #2a2a36; --accent: #6c5ce7; --accent2: #00cec9;
+    --text: #e8e6e3; --text-dim: #6b6b78; --radius: 12px;
+  }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 40px 20px;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: linear-gradient(rgba(108,92,231,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(108,92,231,0.04) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+  .container { position: relative; z-index: 1; max-width: 800px; width: 100%; }
+  header { text-align: center; margin-bottom: 36px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(108,92,231,0.12); border: 1px solid rgba(108,92,231,0.25);
+    border-radius: 100px; padding: 4px 14px; font-size: 11px; font-weight: 600;
+    color: var(--accent); margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 32px; font-weight: 700; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 60%, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .sub { color: var(--text-dim); font-size: 14px; }
+  .tabs {
+    display: flex; gap: 4px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 4px; margin-bottom: 24px;
+  }
+  .tab {
+    flex: 1; padding: 10px 16px; text-align: center; border: none;
+    background: transparent; color: var(--text-dim); font-family: inherit;
+    font-size: 14px; font-weight: 500; border-radius: calc(var(--radius) - 4px);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tab.active { background: var(--surface2); color: var(--accent); box-shadow: 0 0 0 1px var(--border); }
+  .tab:hover:not(.active) { color: var(--text); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px; margin-bottom: 20px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
+  textarea, input[type="text"], input[type="color"], select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 10px 14px;
+    font-family: inherit; font-size: 14px; outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus, input[type="text"]:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 100px; font-family: monospace; font-size: 13px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 600px) { .form-row, .form-row.three { grid-template-columns: 1fr; } }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 10px 24px;
+    border-radius: 8px; border: none; font-family: inherit; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    background: var(--accent); color: #fff;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(108,92,231,0.3); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-secondary:hover { border-color: var(--text-dim); }
+  .btn-small { padding: 6px 14px; font-size: 12px; }
+  .qr-output {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    margin-top: 20px; padding: 24px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px);
+  }
+  #qrcode { background: #fff; padding: 16px; border-radius: 8px; display: inline-flex; }
+  #qrcode img, #qrcode canvas { display: block !important; }
+  .qr-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .file-drop {
+    border: 2px dashed var(--border); border-radius: calc(var(--radius) - 4px);
+    padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px;
+  }
+  .file-drop:hover, .file-drop.dragover { border-color: var(--accent); background: rgba(108,92,231,0.04); }
+  .file-drop input { display: none; }
+  .file-drop-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.5; }
+  .file-drop-text { font-size: 14px; color: var(--text-dim); }
+  .file-drop-text strong { color: var(--accent); }
+  .decode-result { margin-top: 16px; padding: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; display: none; }
+  .decode-result.show { display: block; }
+  .decode-result .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .decode-result .content { font-family: monospace; font-size: 13px; color: var(--accent2); word-break: break-all; background: var(--bg); padding: 12px; border-radius: 6px; }
+  .decode-result .actions { margin-top: 12px; }
+  .error-msg { color: #ff6b6b; font-size: 13px; margin-top: 10px; display: none; }
+  .error-msg.show { display: block; }
+  #cameraCanvas { display: none; }
+  .camera-preview { width: 100%; max-height: 400px; object-fit: contain; background: #000; border-radius: 8px; margin-bottom: 12px; }
+  footer { margin-top: 40px; text-align: center; font-size: 12px; color: var(--text-dim); }
+  footer a { color: var(--accent); text-decoration: none; }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">🛠 纯前端 · 不上传</div>
+    <h1>二维码工具箱</h1>
+    <p class="sub">生成二维码 · 识别解码 · 一键下载</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('generate')">生成</button>
+    <button class="tab" onclick="switchTab('decode')">解码</button>
+  </div>
+
+  <!-- 生成面板 -->
+  <div class="panel active" id="panel-generate">
+    <div class="card">
+      <div class="card-title">内容</div>
+      <textarea id="qrInput" placeholder="输入文本、链接、联系方式…">https://ct-yx.github.io/Personal-use-gadget/</textarea>
+    </div>
+    <div class="card">
+      <div class="card-title">样式</div>
+      <div class="form-row three">
+        <div><label>尺寸</label><select id="qrSize"><option value="160">160</option><option value="200">200</option><option value="240" selected>240</option><option value="300">300</option><option value="360">360</option><option value="400">400</option></select></div>
+        <div><label>纠错</label><select id="qrLevel"><option value="L">L (低)</option><option value="M" selected>M (中)</option><option value="Q">Q (较高)</option><option value="H">H (高)</option></select></div>
+        <div><label>前景色</label><input type="color" id="qrDark" value="#000000"></div>
+      </div>
+      <button class="btn" onclick="generateQR()" style="width:100%">生成二维码</button>
+    </div>
+    <div class="qr-output" id="qrOutput" style="display:none">
+      <div id="qrcode"></div>
+      <div class="qr-actions">
+        <button class="btn btn-small btn-secondary" onclick="downloadQR()">⬇ 下载 PNG</button>
+        <button class="btn btn-small btn-secondary" onclick="copyQRCanvas()">📋 复制图片</button>
+      </div>
+      <p style="font-size:11px;color:var(--text-dim);margin:0" id="qrMeta"></p>
+    </div>
+  </div>
+
+  <!-- 解码面板 -->
+  <div class="panel" id="panel-decode">
+    <div class="card">
+      <div class="card-title">上传图片</div>
+      <div class="file-drop" id="dropZone">
+        <input type="file" id="decodeFile" accept="image/*">
+        <div class="file-drop-icon">📷</div>
+        <div class="file-drop-text">点击选择或拖拽二维码图片到此处</div>
+      </div>
+      <div style="text-align:center;color:var(--text-dim);font-size:13px;margin:8px 0">— 或 —</div>
+      <button class="btn btn-secondary" onclick="startCamera()" id="cameraBtn" style="width:100%">📸 使用摄像头扫描</button>
+      <video class="camera-preview" id="cameraPreview" autoplay playsinline style="display:none"></video>
+      <canvas id="cameraCanvas"></canvas>
+      <button class="btn btn-small btn-secondary" onclick="stopCamera()" id="stopCamBtn" style="display:none;margin-top:10px;width:100%">停止摄像头</button>
+      <div class="decode-result" id="decodeResult">
+        <div class="label">解码结果</div>
+        <div class="content" id="decodeContent"></div>
+        <div class="actions"><button class="btn btn-small btn-secondary" onclick="copyDecodeResult()">📋 复制</button></div>
+      </div>
+      <div class="error-msg" id="decodeError"></div>
+    </div>
+  </div>
+  <footer>
+    <p>纯浏览器端处理 · <a href="https://github.com/ct-yx/Personal-use-gadget" target="_blank">GitHub</a></p>
+  </footer>
+</div>
+
+<script>
+  let qrCodeInstance = null;
+  let lastQrDataUrl = null;
+  let cameraStream = null;
+  let scanInterval = null;
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    if (name === 'generate') { document.querySelectorAll('.tab')[0].classList.add('active'); document.getElementById('panel-generate').classList.add('active'); }
+    else { document.querySelectorAll('.tab')[1].classList.add('active'); document.getElementById('panel-decode').classList.add('active'); }
+    if (name === 'decode') stopCamera();
+  }
+
+  function generateQR() {
+    const input = document.getElementById('qrInput').value.trim();
+    if (!input) { alert('请输入内容'); return; }
+    const size = parseInt(document.getElementById('qrSize').value);
+    const level = document.getElementById('qrLevel').value;
+    const dark = document.getElementById('qrDark').value;
+    const container = document.getElementById('qrcode');
+    container.innerHTML = '';
+    if (qrCodeInstance) { qrCodeInstance.clear(); qrCodeInstance = null; }
+    try {
+      qrCodeInstance = new QRCode(container, { text: input, width: size, height: size, colorDark: dark, colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel[level] });
+    } catch(e) { alert('生成失败：' + e.message); return; }
+    setTimeout(() => {
+      const canvas = container.querySelector('canvas');
+      if (canvas) lastQrDataUrl = canvas.toDataURL('image/png');
+      document.getElementById('qrOutput').style.display = 'flex';
+      document.getElementById('qrMeta').textContent = size+'×'+size+' · 纠错: '+level+' · 长度: '+input.length+' 字符';
+    }, 50);
+  }
+  function downloadQR() { if (!lastQrDataUrl) return; const a = document.createElement('a'); a.href = lastQrDataUrl; a.download = 'qrcode.png'; a.click(); }
+  async function copyQRCanvas() {
+    if (!lastQrDataUrl) return;
+    try { const blob = await (await fetch(lastQrDataUrl)).blob(); await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); toast('✅ 已复制到剪贴板'); }
+    catch { document.querySelector('#qrcode canvas')?.toBlob(async b=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);toast('✅ 已复制');}catch{alert('复制失败，请使用下载');}}); }
+  }
+
+  const dropZone = document.getElementById('dropZone');
+  const decodeFile = document.getElementById('decodeFile');
+  const decodeResult = document.getElementById('decodeResult');
+  const decodeContent = document.getElementById('decodeContent');
+  const decodeError = document.getElementById('decodeError');
+
+  dropZone.addEventListener('click', () => decodeFile.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('image/')) decodeImage(f); });
+  decodeFile.addEventListener('change', e => { if (e.target.files[0]) decodeImage(e.target.files[0]); });
+
+  function decodeImage(file) {
+    decodeResult.classList.remove('show'); decodeError.classList.remove('show');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.width; c.height = img.height;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const code = jsQR(ctx.getImageData(0,0,c.width,c.height).data, c.width, c.height);
+        if (code) { decodeContent.textContent = code.data; decodeResult.classList.add('show'); }
+        else { decodeError.textContent = '❌ 未识别到二维码，请换一张图片试试'; decodeError.classList.add('show'); }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function copyDecodeResult() { const t = decodeContent.textContent; if (t) navigator.clipboard.writeText(t).then(() => toast('✅ 已复制')); }
+
+  const cameraPreview = document.getElementById('cameraPreview');
+  const cameraCanvas = document.getElementById('cameraCanvas');
+  const cameraBtn = document.getElementById('cameraBtn');
+  const stopCamBtn = document.getElementById('stopCamBtn');
+
+  async function startCamera() {
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } } });
+      cameraPreview.srcObject = cameraStream;
+      cameraPreview.style.display = 'block';
+      cameraBtn.style.display = 'none';
+      stopCamBtn.style.display = 'block';
+      decodeResult.classList.remove('show'); decodeError.classList.remove('show');
+      scanInterval = setInterval(() => {
+        if (!cameraStream) return;
+        const c = cameraCanvas;
+        c.width = cameraPreview.videoWidth || 320;
+        c.height = cameraPreview.videoHeight || 240;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(cameraPreview, 0, 0);
+        const code = jsQR(ctx.getImageData(0,0,c.width,c.height).data, c.width, c.height);
+        if (code) { decodeContent.textContent = code.data; decodeResult.classList.add('show'); setTimeout(() => stopCamera(), 500); }
+      }, 500);
+    } catch(e) { decodeError.textContent = '❌ 无法打开摄像头：' + e.message; decodeError.classList.add('show'); }
+  }
+
+  function stopCamera() {
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    cameraPreview.style.display = 'none';
+    cameraBtn.style.display = 'inline-flex';
+    stopCamBtn.style.display = 'none';
+  }
+
+  function toast(msg) {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    Object.assign(el.style, {
+      position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',
+      background:'var(--surface)',border:'1px solid var(--accent)',color:'var(--accent)',
+      padding:'10px 20px',borderRadius:'8px',fontSize:'13px',fontWeight:'600',zIndex:9999
+    });
+    document.body.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 1800);
+  }
+</script>
+</body>
+</html>

@@ -34,6 +34,7 @@
 
 | 工具 | 说明 | 链接 |
 |------|------|------|
+| **二维码工具箱** | 生成/解码二维码，支持摄像头实时扫描 | [`qr-tool.html`](./qr-tool.html) |
 | **HOTSPOT KEY** | 基于时间戳的每日动态密码生成器 | [`hotspot_key.html`](./hotspot_key.html) |
 
 ---
