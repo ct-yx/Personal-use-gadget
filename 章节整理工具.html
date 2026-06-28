@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>TXT 智能清理专家 V3.1 - 紧凑日志版</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Segoe UI", system-ui, sans-serif;
+            max-width: 1300px;
+            margin: 24px auto;
+            padding: 0 20px;
+            background: #0f1117;
+            color: #cdd9e5;
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            padding: 20px 24px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        h2 { font-size: 18px; color: #e6edf3; margin-bottom: 6px; }
+        .subtitle { color: #7d8590; font-size: 13px; }
+
+        .btn-group { margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        input[type="file"] {
+            font-size: 13px;
+            color: #cdd9e5;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 7px 12px;
+            cursor: pointer;
+        }
+        input[type="file"]::-webkit-file-upload-button {
+            background: #30363d;
+            color: #cdd9e5;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        button {
+            background: #1f6feb;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background .15s;
+        }
+        button:hover { background: #388bfd; }
+        #downloadBtn { background: #238636; }
+        #downloadBtn:hover { background: #2ea043; }
+
+        /* 双栏布局 */
+        .preview-container {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 16px;
+        }
+
+        .panel-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #7d8590;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            padding: 0 0 10px 0;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stats-badge {
+            display: flex;
+            gap: 8px;
+        }
+        .badge {
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        .badge-del { background: rgba(248,81,73,.15); color: #f85149; }
+        .badge-mod { background: rgba(227,179,65,.15); color: #e3b341; }
+        .badge-cln { background: rgba(46,160,67,.15); color: #3fb950; }
+
+        /* 日志区 */
+        .log-box {
+            height: 580px;
+            overflow-y: auto;
+            font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 8px;
+            padding: 8px 0;
+        }
+        .log-box::-webkit-scrollbar { width: 6px; }
+        .log-box::-webkit-scrollbar-track { background: transparent; }
+        .log-box::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+        /* 单行日志条目 */
+        .log-row {
+            display: grid;
+            grid-template-columns: 32px 36px 1fr;
+            gap: 0 8px;
+            padding: 3px 12px;
+            align-items: start;
+            border-bottom: 1px solid #161b22;
+            transition: background .1s;
+        }
+        .log-row:hover { background: #161b22; }
+
+        .log-row.del { border-left: 2px solid #f85149; }
+        .log-row.mod { border-left: 2px solid #e3b341; }
+        .log-row.cln { border-left: 2px solid #3fb950; }
+
+        .log-lno { color: #484f58; font-size: 11px; padding-top: 1px; text-align: right; }
+        .log-type { font-size: 10px; font-weight: 700; padding: 1px 0; padding-top: 2px; }
+        .log-type.del { color: #f85149; }
+        .log-type.mod { color: #e3b341; }
+        .log-type.cln { color: #3fb950; }
+
+        .log-content { color: #8b949e; word-break: break-all; }
+        .log-content .strike { text-decoration: line-through; opacity: .6; }
+        .log-content .arrow { color: #484f58; margin: 0 4px; }
+        .log-content .highlight { color: #aff5b4; }
+
+        /* 文本预览 */
+        textarea {
+            width: 100%;
+            height: 580px;
+            font-family: "Cascadia Code", Consolas, monospace;
+            padding: 14px;
+            background: #0d1117;
+            color: #e6edf3;
+            border: 1px solid #21262d;
+            border-radius: 8px;
+            line-height: 1.8;
+            font-size: 13px;
+            resize: none;
+        }
+        textarea::-webkit-scrollbar { width: 6px; }
+        textarea::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+        .empty-log {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #3fb950;
+            font-size: 13px;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🚀 TXT 智能清理专家 V3.1</h2>
+    <p class="subtitle">紧凑日志版 · 支持变体域名广告 / 章节重排 / 行内精准清洗</p>
+    <div class="btn-group">
+        <input type="file" id="fileInput" accept=".txt">
+        <button id="processBtn">▶ 开始清洗</button>
+        <button id="downloadBtn" style="display:none;">↓ 下载结果</button>
+    </div>
+</div>
+
+<div class="preview-container" id="resView" style="display:none;">
+    <div>
+        <div class="panel-title">
+            处理日志
+            <div class="stats-badge">
+                <span class="badge badge-del" id="cnt-del">DEL 0</span>
+                <span class="badge badge-mod" id="cnt-mod">MOD 0</span>
+                <span class="badge badge-cln" id="cnt-cln">CLN 0</span>
+            </div>
+        </div>
+        <div id="logArea" class="log-box"></div>
+    </div>
+    <div>
+        <div class="panel-title">导出预览（前 8000 字）</div>
+        <textarea id="finalPreview" readonly></textarea>
+    </div>
+</div>
+
+<script>
+    let processedContent = "";
+    let fileName = "";
+
+    const junkPatterns = [
+        /分卷阅读\s*\d+/gi,
+        /免费看书搜索[:：]\s*[\u4e00-\u9fa5]+\s*\w+\.\w+/gi,
+        /laxsw\.com/gi,
+        /newtianxi\.com/gi,
+        /yuedudi\.com/gi,
+        /阅读地/g,
+        /拉小书网/g,
+        /完\/本¨神\+站.*?[""]?/g,
+        /休牢息记.*?休息一下/g,
+        /无ꁘ错-内-容￠/g,
+        // 变体域名广告（模糊符号）
+        /[a-z0-9][\s′+？￠\-_.,!@#^&*]*\.(?:com|net|org|cc|xyz)/gi
+    ];
+
+    document.getElementById('processBtn').onclick = function () {
+        const file = document.getElementById('fileInput').files[0];
+        if (!file) return alert("请选择 TXT 文件");
+        fileName = "精校版_" + file.name;
+        const reader = new FileReader();
+        reader.onload = (e) => runClean(e.target.result);
+        reader.readAsText(file);
+    };
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+
+    function truncate(str, max = 60) {
+        str = str.trim();
+        return str.length > max ? str.slice(0, max) + "…" : str;
+    }
+
+    function runClean(rawText) {
+        const lines = rawText.split(/\r?\n/);
+        const resultLines = [];
+        const logRows = [];
+        let chapterCount = 1;
+        let cntDel = 0, cntMod = 0, cntCln = 0;
+
+        const chapterRegex = /^(?:【web】|[""]|={2,})?\s*(\d+)[、\s.]([^""\n=]+?)(?:={2,}|[""])?$/;
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) { resultLines.push(""); continue; }
+
+            const originalLine = line;
+            let isChapter = false;
+
+            // 章节识别
+            const cMatch = line.match(chapterRegex);
+            if (cMatch) {
+                const rawTitle = cMatch[2].trim();
+                const newTitle = `第${chapterCount}章 ${rawTitle}`;
+                logRows.push(`
+                    <div class="log-row mod">
+                        <span class="log-lno">${i + 1}</span>
+                        <span class="log-type mod">MOD</span>
+                        <span class="log-content">
+                            <span class="strike">${esc(truncate(originalLine))}</span>
+                            <span class="arrow">→</span>
+                            <span class="highlight">${esc(newTitle)}</span>
+                        </span>
+                    </div>`);
+                resultLines.push("\n" + newTitle);
+                chapterCount++;
+                isChapter = true;
+                cntMod++;
+            }
+
+            if (!isChapter) {
+                let cleanedLine = line;
+                junkPatterns.forEach(p => { cleanedLine = cleanedLine.replace(p, ""); });
+                cleanedLine = cleanedLine.trim();
+
+                if (cleanedLine === "") {
+                    logRows.push(`
+                        <div class="log-row del">
+                            <span class="log-lno">${i + 1}</span>
+                            <span class="log-type del">DEL</span>
+                            <span class="log-content"><span class="strike">${esc(truncate(originalLine))}</span></span>
+                        </div>`);
+                    cntDel++;
+                } else if (cleanedLine !== originalLine) {
+                    logRows.push(`
+                        <div class="log-row cln">
+                            <span class="log-lno">${i + 1}</span>
+                            <span class="log-type cln">CLN</span>
+                            <span class="log-content">
+                                <span class="strike">${esc(truncate(originalLine))}</span>
+                                <span class="arrow">→</span>
+                                <span class="highlight">${esc(truncate(cleanedLine))}</span>
+                            </span>
+                        </div>`);
+                    resultLines.push(cleanedLine);
+                    cntCln++;
+                } else {
+                    resultLines.push(line);
+                }
+            }
+        }
+
+        processedContent = resultLines.join('\n').replace(/\n{3,}/g, '\n\n');
+
+        const logArea = document.getElementById('logArea');
+        if (logRows.length) {
+            logArea.innerHTML = logRows.join('');
+        } else {
+            logArea.innerHTML = `<div class="empty-log">✓ 干净，没有发现任何垃圾内容</div>`;
+        }
+
+        document.getElementById('cnt-del').textContent = `DEL ${cntDel}`;
+        document.getElementById('cnt-mod').textContent = `MOD ${cntMod}`;
+        document.getElementById('cnt-cln').textContent = `CLN ${cntCln}`;
+
+        document.getElementById('finalPreview').value = processedContent.substring(0, 8000);
+        document.getElementById('resView').style.display = 'grid';
+        document.getElementById('downloadBtn').style.display = 'inline-block';
+    }
+
+    document.getElementById('downloadBtn').onclick = () => {
+        const blob = new Blob([processedContent], { type: 'text/plain;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        a.click();
+    };
+</script>
+</body>
+</html>
