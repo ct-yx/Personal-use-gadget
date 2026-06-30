@@ -51,6 +51,10 @@
         <button id="download" class="btn good" disabled>下载 APK</button>
         <button id="reset" class="btn secondary">重置</button>
       </div>
+      <label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:rgba(255,255,255,.72)">
+        <input id="arm64Only" type="checkbox" checked style="width:auto;margin-top:5px;display:block">
+        <span><b>64 位 arm64-v8a 合并模式</b><br><span class="small">适用于类似 Qwen 这类 split XAPK：提取 base APK，并合并 <code>config.arm64_v8a.apk</code> 中的 64 位 native 库后重签名输出单 APK。工具定位为 64 位设备使用；不保证处理复杂 feature/language/density split。</span></span>
+      </label>
       <details style="margin-top:14px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);border-radius:14px;padding:12px 14px">
         <summary style="cursor:pointer;font-weight:800;color:#dfe6ff">高级签名选项</summary>
         <label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:rgba(255,255,255,.72)">
@@ -71,6 +75,7 @@
         <iframe name="pwSaveFrame" title="password-save-target" style="position:absolute;left:-9999px;width:1px;height:1px;border:0;opacity:0"></iframe>
         <div class="row" style="margin-top:10px">
           <button id="savePasswordHint" class="btn secondary" type="button">触发浏览器保存口令</button>
+          <button id="loadPasswordHint" class="btn secondary" type="button">调用浏览器保存口令</button>
           <button id="resetPasswordSlot" class="btn warn" type="button">删除当前口令签名槽</button>
           <button id="resetKey" class="btn warn" type="button">删除通用固定签名密钥</button>
         </div>
@@ -176,12 +181,63 @@ async function makeV1Signature(files){let mfMain='Manifest-Version: 1.0\r\nCreat
 function guessManifestText(entries){const e=entries.find(x=>x.name==='AndroidManifest.xml');if(!e||e.method!==0)return '';let a=e.data,s='';for(let i=0;i<a.length;i++){const c=a[i];if(c>=32&&c<127)s+=String.fromCharCode(c);else s+=' '}return s}
 function parseTextManifest(t){let pkg=(t.match(/package\s*=\s*["']([^"']+)/)||[])[1]||'';let ver=(t.match(/versionName\s*=\s*["']([^"']+)/)||[])[1]||'';return {pkg,ver}}
 function validApkRoot(entries){return entries.some(e=>e.name==='AndroidManifest.xml')&&entries.some(e=>/^classes\d*\.dex$/.test(e.name)||e.name==='resources.arsc')}
-async function selectBase(data,entries){if(validApkRoot(entries)){return {kind:'APK 根目录型 XAPK / APK',apkBytes:data,entries}}const apks=entries.filter(e=>e.name.toLowerCase().endsWith('.apk')&&!isDir(e));if(!apks.length)throw Error('XAPK 中没有找到 APK，也不是 APK 根目录结构');if(apks.length>1){const bases=apks.filter(e=>/base|universal|master/i.test(e.name));if(bases.length!==1)throw Error('检测到多个 split APK：'+apks.map(e=>e.name).join(', ')+'。split 包不能在浏览器中可靠合并成单 APK，请使用系统包安装器/SAI 安装。');const b=await getEntryBytes(bases[0]);return {kind:'内含单 base APK 的 XAPK',apkBytes:b,entries:parseZip(b)}}const b=await getEntryBytes(apks[0]);return {kind:'内含单 APK 的 XAPK',apkBytes:b,entries:parseZip(b)}}
+function apkListText(apks){return apks.map(e=>' - '+e.name).join('\n')}
+function unsupportedSplitError(apks,reason){return Error(reason+'\n\n当前 XAPK 内 APK 列表：\n'+apkListText(apks)+'\n\n本工具当前定位为 64 位 arm64-v8a 单 APK 合并：base APK + config.arm64_v8a.apk。若你确认该结构应支持，请带上以上列表提交 issue。')}
+function isBaseApkName(n){return /(^|\/)(base|master|universal|[^\/]+)\.apk$/i.test(n)&&!/config\.|split_config\.|feature|asset/i.test(n)}
+function isArm64ApkName(n){return /(arm64|arm64_v8a|arm64-v8a)/i.test(n)}
+function isFeatureSplitName(n){return /(feature|dynamic|module)/i.test(n)}
+async function mergeArm64Split(baseEntry,arm64Entry){
+  const baseBytes=await getEntryBytes(baseEntry), armBytes=await getEntryBytes(arm64Entry);
+  const baseEntries=parseZip(baseBytes), armEntries=parseZip(armBytes);
+  if(!validApkRoot(baseEntries))throw Error('base APK 缺少 AndroidManifest.xml 或 dex/resources，无法作为主包');
+  const merged=new Map();
+  for(const e of baseEntries){if(isDir(e)||e.name.startsWith('META-INF/')||e.name.startsWith('__MACOSX/'))continue;merged.set(e.name,e)}
+  let addCount=0,skipCount=0;
+  for(const e of armEntries){
+    if(isDir(e)||e.name.startsWith('META-INF/')||e.name.startsWith('__MACOSX/'))continue;
+    const n=e.name;
+    const keep = n.startsWith('lib/arm64-v8a/') || n.startsWith('assets/') || n.startsWith('kotlin/') || n.startsWith('META-INF/services/');
+    const drop = n==='AndroidManifest.xml' || n==='resources.arsc' || n.startsWith('res/') || /^classes\d*\.dex$/.test(n);
+    if(keep && !drop){merged.set(n,e);addCount++}else skipCount++
+  }
+  log('64 位合并：base='+baseEntry.name+'；arm64 split='+arm64Entry.name+'；合入条目 '+addCount+'，跳过资源/Manifest 等条目 '+skipCount);
+  return {kind:'split XAPK 64 位合并：base APK + arm64-v8a split',apkBytes:baseBytes,entries:[...merged.values()]};
+}
+async function selectBase(data,entries){
+  if(validApkRoot(entries)){return {kind:'APK 根目录型 XAPK / APK',apkBytes:data,entries}}
+  const apks=entries.filter(e=>e.name.toLowerCase().endsWith('.apk')&&!isDir(e));
+  if(!apks.length)throw Error('XAPK 中没有找到 APK，也不是 APK 根目录结构');
+  if(apks.length===1){const b=await getEntryBytes(apks[0]);return {kind:'内含单 APK 的 XAPK',apkBytes:b,entries:parseZip(b)}}
+  const feature=apks.filter(e=>isFeatureSplitName(e.name));
+  if(feature.length)throw unsupportedSplitError(apks,'检测到 feature/dynamic split，不能按简单 64 位规则合并');
+  const baseCandidates=apks.filter(e=>/base|master|universal/i.test(e.name)||(!/config\.|split_config\./i.test(e.name)&&isBaseApkName(e.name)));
+  const arm64Candidates=apks.filter(e=>isArm64ApkName(e.name));
+  if(baseCandidates.length!==1)throw unsupportedSplitError(apks,'无法确定唯一 base APK');
+  if(arm64Candidates.length!==1){
+    if($('arm64Only')&&$('arm64Only').checked)throw unsupportedSplitError(apks,'未找到唯一 arm64-v8a split，无法按 64 位规则合并');
+    const b=await getEntryBytes(baseCandidates[0]);return {kind:'内含 base APK 的 XAPK（未合并 split）',apkBytes:b,entries:parseZip(b)}
+  }
+  if($('arm64Only')&&$('arm64Only').checked)return mergeArm64Split(baseCandidates[0],arm64Candidates[0]);
+  const b=await getEntryBytes(baseCandidates[0]);return {kind:'内含 base APK 的 XAPK（64 位合并模式已关闭）',apkBytes:b,entries:parseZip(b)}
+}
 async function convert(){try{if(!selectedFile)return;setBar(2);resultBlob=null;$('download').disabled=true;$('done').style.display='none';log('读取文件：'+selectedFile.name);const data=new Uint8Array(await selectedFile.arrayBuffer());setBar(10);const entries=parseZip(data);log('ZIP 条目数：'+entries.length);const base=await selectBase(data,entries);$('kind').textContent=base.kind;log('类型：'+base.kind);setBar(20);let apkEntries=base.entries.filter(e=>!e.name.startsWith('META-INF/')&&!e.name.startsWith('__MACOSX/')&&!e.name.endsWith('.RSA')&&!e.name.endsWith('.SF'));if(!validApkRoot(apkEntries))throw Error('选中的 APK 缺少 AndroidManifest.xml 或 dex/resources，无法打包');const mt=guessManifestText(apkEntries),pm=parseTextManifest(mt);$('pkg').textContent=pm.pkg||'二进制 Manifest，浏览器未解析出包名';$('ver').textContent=pm.ver||'二进制 Manifest，浏览器未解析出版本';log('清理旧签名 META-INF，保留条目：'+apkEntries.length);setBar(32);log('生成 v1 签名文件...');const sigs=await makeV1Signature(apkEntries);setBar(62);const files=[...apkEntries.map(e=>({name:e.name,data:e.data,method:e.method,crc:e.crc,csize:e.csize,usize:e.usize,time:e.time,date:e.date})),...sigs];log('重建 APK ZIP 中央目录...');const apk=buildZip(files);setBar(88);resultBlob=new Blob([apk],{type:'application/vnd.android.package-archive'});const stem=selectedFile.name.replace(/\.(xapk|apk|zip)$/i,'');resultName=stem+'_converted_signed.apk';$('out').textContent=resultName+' / '+fmt(apk.length);$('download').disabled=false;setBar(100);$('done').style.display='block';$('done').innerHTML='<b>转换完成。</b><br>输出文件：<code>'+resultName+'</code><br>大小：'+fmt(apk.length)+'<br><span class="small">如果安装提示签名冲突，请先卸载同包名旧版本。</span>';log('完成：'+resultName+'，'+fmt(apk.length))}catch(e){setBar(0);log('错误：'+(e&&e.stack?e.stack:e));alert('转换失败：'+(e.message||e))}}
 $('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('drag')});$('drop').addEventListener('dragleave',()=>$('drop').classList.remove('drag'));$('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('drag');if(e.dataTransfer.files[0])pick(e.dataTransfer.files[0])});$('file').addEventListener('change',e=>{if(e.target.files[0])pick(e.target.files[0])});function pick(f){selectedFile=f;resultBlob=null;$('convert').disabled=false;$('download').disabled=true;$('name').textContent=f.name;$('size').textContent=fmt(f.size);$('kind').textContent='待分析';$('pkg').textContent='-';$('ver').textContent='-';$('out').textContent='-';$('log').textContent='';setBar(0);if($('slotName')&&!$('slotName').value)$('slotName').placeholder='默认：'+defaultSlotName();log('已选择：'+f.name+' / '+fmt(f.size));updateKeyStatus()}
 async function updateKeyStatus(){try{const saved=await idbGet(KEY_NAME);let msg=saved?'通用固定密钥：已保存，创建时间 '+(saved.createdAt||'未知'):'通用固定密钥：未保存';if($('slotName')){const slot=await currentPassSlot();const ps=await idbGet(slot.key);msg+='；口令槽：'+slot.raw+' / '+slot.id.slice(0,16)+'... / '+(ps?'已保存加密私钥':'未创建')}$('keyStatus').textContent='密钥状态：'+msg}catch(e){$('keyStatus').textContent='密钥状态：当前浏览器不支持或禁止 IndexedDB'}}
 $('convert').onclick=convert;$('resetKey').onclick=async()=>{if(confirm('确定删除浏览器本地通用固定签名密钥？删除后新生成的 APK 将不能覆盖旧密钥签出的 APK。')){await idbDel(KEY_NAME);await updateKeyStatus();log('已删除通用固定签名密钥。')}};$('resetPasswordSlot').onclick=async()=>{const slot=await currentPassSlot();if(confirm('确定删除口令签名槽「'+slot.raw+'」？删除后会重新生成该名称的签名。')){await idbDel(slot.key);await updateKeyStatus();log('已删除口令签名槽：'+slot.raw)}};async function triggerPasswordSave(){if(!$('slotName').value)$('slotName').value=defaultSlotName();if(!$('slotPass').value){alert('请先填写签名口令，再点击保存。浏览器是否弹出保存密码提示取决于浏览器策略。');return}const form=$('signPassForm');let usedApi=false;if('PasswordCredential' in window&&navigator.credentials&&navigator.credentials.store){try{log('尝试使用 Credential Management API 保存 PasswordCredential...');const cred=new PasswordCredential(form);await navigator.credentials.store(cred);usedApi=true;log('Credential Management API 已调用；若浏览器允许，会保存/更新该口令。')}catch(e){log('Credential Management API 不可用或被浏览器拒绝：'+(e.message||e))}}else{log('当前浏览器不支持 PasswordCredential/navigator.credentials.store，使用表单提交 fallback。')}log('发送标准登录表单提交信号，并模拟登录成功导航...');form.requestSubmit();setTimeout(()=>{try{history.replaceState({passwordSaved:true},'',location.pathname+location.search+'#password-saved');const old=form.style.display;form.dataset.oldDisplay=old;form.style.display='none';setTimeout(()=>{form.style.display=form.dataset.oldDisplay||''},1200)}catch(e){}},80);if(!usedApi)log('已执行 fallback；若浏览器策略允许，会弹出保存/更新密码提示。')}
-$('savePasswordHint').onclick=triggerPasswordSave;$('signPassForm').addEventListener('submit',()=>{log('已提交签名口令表单。')});for(const id of ['slotName','slotPass'])if($(id))$(id).addEventListener('input',updateKeyStatus);if($('passwordKey'))$('passwordKey').addEventListener('change',()=>{if($('passwordKey').checked&&$('persistKey'))$('persistKey').checked=false;updateKeyStatus()});if($('persistKey'))$('persistKey').addEventListener('change',()=>{if($('persistKey').checked&&$('passwordKey'))$('passwordKey').checked=false;updateKeyStatus()});updateKeyStatus();$('download').onclick=()=>{if(!resultBlob)return;const a=document.createElement('a');a.href=URL.createObjectURL(resultBlob);a.download=resultName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};$('reset').onclick=()=>location.reload();
+async function loadPasswordFromBrowser(){
+  if(!navigator.credentials||!navigator.credentials.get){alert('当前浏览器不支持 navigator.credentials.get，无法主动调用保存的口令。可尝试点击输入框让浏览器自动填充。');return}
+  try{
+    log('尝试调用浏览器保存的签名口令...');
+    const cred=await navigator.credentials.get({password:true,mediation:'optional'});
+    if(!cred){log('浏览器没有返回口令。可能未保存、当前站点不匹配，或浏览器策略禁止自动返回。');alert('没有取回保存的口令。请确认之前已保存，或点击输入框使用浏览器自动填充。');return}
+    if($('slotName'))$('slotName').value=cred.id||$('slotName').value;
+    if($('slotPass')&&'password' in cred)$('slotPass').value=cred.password||$('slotPass').value;
+    if($('passwordKey'))$('passwordKey').checked=true;
+    await updateKeyStatus();
+    log('已从浏览器凭据接口取回签名槽名/口令：'+(cred.id||'(无 id)'));
+  }catch(e){log('调用浏览器保存口令失败：'+(e.message||e));alert('调用浏览器保存口令失败：'+(e.message||e))}
+}
+$('savePasswordHint').onclick=triggerPasswordSave;if($('loadPasswordHint'))$('loadPasswordHint').onclick=loadPasswordFromBrowser;$('signPassForm').addEventListener('submit',()=>{log('已提交签名口令表单。')});for(const id of ['slotName','slotPass'])if($(id))$(id).addEventListener('input',updateKeyStatus);if($('passwordKey'))$('passwordKey').addEventListener('change',()=>{if($('passwordKey').checked&&$('persistKey'))$('persistKey').checked=false;updateKeyStatus()});if($('persistKey'))$('persistKey').addEventListener('change',()=>{if($('persistKey').checked&&$('passwordKey'))$('passwordKey').checked=false;updateKeyStatus()});updateKeyStatus();$('download').onclick=()=>{if(!resultBlob)return;const a=document.createElement('a');a.href=URL.createObjectURL(resultBlob);a.download=resultName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};$('reset').onclick=()=>location.reload();
 </script>
 </body>
 </html>
