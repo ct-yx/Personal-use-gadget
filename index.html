@@ -783,7 +783,7 @@ const tools = [
 function renderTools(filter = 'all') {
   const grid = document.getElementById('toolGrid');
   const filtered = filter === 'all' ? tools : tools.filter(t => t.filter === filter);
-  grid.innerHTML = filtered.map(t => `
+  grid.innerHTML = filtered.map((t, i) => `
     <div class="tool-card ${['pdf-merger','xapk-apk-converter','hotspot-key'].includes(t.id) ? 'featured' : ''}" data-filter="${t.filter}" data-id="${t.id}">
       <div class="tool-card-topline"><span>${String(i + 1).padStart(2,'0')}</span><em>${t.filter}</em></div>
       <div class="tool-card-icon" style="background:${t.iconBg}">${t.icon}</div>
