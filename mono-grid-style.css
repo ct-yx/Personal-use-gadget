@@ -344,3 +344,199 @@ summary {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
+
+/* ─── Compatibility fixes for legacy pages ─── */
+body.page-pdfchange,
+body.page-partition,
+body.page-qrtool,
+body.page-splitscreen {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 42px 20px 80px !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: var(--sans) !important;
+}
+
+body.page-pdfchange .container,
+body.page-partition .container,
+body.page-qrtool .container,
+body.page-splitscreen .container {
+  max-width: 900px !important;
+  width: min(900px, 100%) !important;
+  margin: 0 auto !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1.5px solid var(--border-2) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-glow) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+}
+
+body.page-splitscreen .container { max-width: 1060px !important; width: min(1060px, 100%) !important; }
+
+body.page-pdfchange h1,
+body.page-partition h1,
+body.page-qrtool h1,
+body.page-splitscreen h1,
+body.page-splitscreen h2 {
+  color: #fff !important;
+  -webkit-text-fill-color: initial !important;
+  background: none !important;
+  font-family: var(--mono) !important;
+  text-align: center !important;
+  letter-spacing: -0.03em !important;
+  text-shadow: 0 0 28px rgba(232,255,71,.10) !important;
+}
+
+body.page-pdfchange h1::after,
+body.page-partition h1::after,
+body.page-qrtool h1::after,
+body.page-splitscreen h2::after {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 2px;
+  margin: 12px auto 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-cyan));
+  box-shadow: 0 0 18px rgba(232,255,71,.28);
+}
+
+body.page-pdfchange h2,
+body.page-partition h2,
+body.page-qrtool .card-title,
+body.page-partition label,
+body.page-pdfchange label,
+body.page-splitscreen label {
+  color: var(--accent) !important;
+  font-family: var(--mono) !important;
+  letter-spacing: .08em !important;
+}
+
+body.page-pdfchange p,
+body.page-partition p,
+body.page-qrtool p,
+body.page-splitscreen p,
+body.page-splitscreen #status,
+body.page-partition #progressStatus,
+body.page-qrtool .sub,
+body.page-qrtool .file-drop-text,
+body.page-qrtool label {
+  color: var(--text-dim) !important;
+}
+
+body.page-pdfchange .upload-area,
+body.page-partition .drop-area,
+body.page-qrtool .file-drop,
+body.page-splitscreen .upload-area {
+  background: linear-gradient(180deg, rgba(232,255,71,.045), rgba(255,255,255,.025)) !important;
+  color: var(--text) !important;
+  border-color: rgba(232,255,71,.26) !important;
+  border-radius: var(--radius) !important;
+}
+
+body.page-pdfchange .upload-area:hover,
+body.page-partition .drop-area:hover,
+body.page-partition .drop-area.dragover,
+body.page-qrtool .file-drop:hover,
+body.page-qrtool .file-drop.dragover,
+body.page-splitscreen .upload-area:hover {
+  background: rgba(232,255,71,.07) !important;
+  border-color: var(--accent) !important;
+}
+
+body.page-pdfchange .option-item,
+body.page-partition .file-info,
+body.page-partition .download-link,
+body.page-qrtool .tabs,
+body.page-qrtool .tab.active,
+body.page-qrtool .qr-output,
+body.page-qrtool .decode-result,
+body.page-qrtool .decode-result .content,
+body.page-splitscreen .slice-item,
+body.page-splitscreen .slice-info {
+  background: rgba(8,8,12,.62) !important;
+  color: var(--text) !important;
+  border: 1.5px solid var(--border-2) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+}
+
+body.page-pdfchange .option-item:hover,
+body.page-partition .download-link:hover,
+body.page-splitscreen .slice-item:hover {
+  background: rgba(232,255,71,.055) !important;
+  border-color: rgba(232,255,71,.34) !important;
+}
+
+body.page-pdfchange .option-item label,
+body.page-partition .file-info,
+body.page-partition .file-info strong,
+body.page-partition .download-link,
+body.page-splitscreen .slice-info {
+  color: var(--text) !important;
+}
+
+body.page-pdfchange .status,
+body.page-partition .error,
+body.page-partition .success,
+body.page-qrtool .error-msg,
+body.page-qrtool .decode-result .label {
+  font-family: var(--mono) !important;
+}
+
+body.page-pdfchange .status.success,
+body.page-partition .success { color: var(--success) !important; background: rgba(46,204,113,.08) !important; border: 1px solid rgba(46,204,113,.25) !important; }
+body.page-pdfchange .status.error,
+body.page-partition .error,
+body.page-qrtool .error-msg { color: var(--danger) !important; background: rgba(255,71,87,.08) !important; border: 1px solid rgba(255,71,87,.25) !important; }
+
+body.page-pdfchange .loading-spinner {
+  border-color: rgba(255,255,255,.12) !important;
+  border-top-color: var(--accent) !important;
+}
+
+body.page-partition .progress,
+body.page-splitscreen canvas {
+  background: rgba(0,0,0,.35) !important;
+  border: 1px solid var(--border-2) !important;
+}
+body.page-partition .progress-bar { background: linear-gradient(90deg, var(--accent), var(--accent-cyan)) !important; }
+
+body.page-qrtool .tab {
+  color: var(--text-dim) !important;
+  background: transparent !important;
+}
+body.page-qrtool .tab.active {
+  color: var(--accent) !important;
+  background: rgba(232,255,71,.07) !important;
+}
+body.page-qrtool #qrcode {
+  background: #fff !important;
+  border: 10px solid #fff !important;
+  padding: 8px !important;
+  box-shadow: 0 0 32px rgba(255,255,255,.08) !important;
+}
+body.page-qrtool input[type='color'] {
+  padding: 4px !important;
+  min-height: 42px !important;
+}
+body.page-qrtool .decode-result .content {
+  color: var(--accent-cyan) !important;
+  word-break: break-all !important;
+}
+
+body.page-splitscreen #result {
+  position: relative;
+  z-index: 1;
+}
+body.page-splitscreen .download-link {
+  color: var(--accent-cyan) !important;
+}
+
+body.page-pdfchange .footer,
+body.page-splitscreen + .footer,
+body.page-pdfchange .footer p {
+  color: var(--text-dim) !important;
+}
