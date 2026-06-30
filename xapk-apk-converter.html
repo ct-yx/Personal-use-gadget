@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAPK → APK 离线转换签名工具</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0a0a0f;color:#e8e6e3;line-height:1.6}body:before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 20% 0%,rgba(108,92,231,.2),transparent 35%),radial-gradient(circle at 80% 100%,rgba(0,206,201,.14),transparent 35%),linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:auto,auto,44px 44px,44px 44px;pointer-events:none}main{position:relative;max-width:1100px;margin:0 auto;padding:36px 18px 70px}.hero{padding:34px 0 24px;text-align:center}.badge{display:inline-flex;gap:8px;align-items:center;padding:6px 14px;border:1px solid rgba(0,206,201,.28);background:rgba(0,206,201,.1);border-radius:999px;color:#00cec9;font-size:12px;font-weight:700}.dot{width:7px;height:7px;background:#00cec9;border-radius:50%;box-shadow:0 0 18px #00cec9}h1{font-size:clamp(30px,6vw,58px);line-height:1.08;margin:18px 0 12px;background:linear-gradient(135deg,#fff,#9c91ff,#00cec9);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{max-width:760px;margin:0 auto;color:rgba(255,255,255,.62)}.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;margin-top:24px}.card{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);border-radius:18px;padding:22px;box-shadow:0 20px 80px rgba(0,0,0,.22);backdrop-filter:blur(10px)}@media(max-width:880px){.grid{grid-template-columns:1fr}}.drop{border:1.5px dashed rgba(108,92,231,.5);border-radius:18px;min-height:230px;display:flex;align-items:center;justify-content:center;text-align:center;padding:26px;background:rgba(108,92,231,.08);transition:.25s;cursor:pointer}.drop.drag{border-color:#00cec9;background:rgba(0,206,201,.1);transform:translateY(-2px)}.drop strong{font-size:22px}.drop p{color:rgba(255,255,255,.58);margin:8px 0 0}input[type=file]{display:none}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.btn{appearance:none;border:0;border-radius:12px;padding:12px 18px;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(135deg,#6c5ce7,#8b7cf7);box-shadow:0 10px 28px rgba(108,92,231,.25);transition:.2s}.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}.btn.secondary{background:rgba(255,255,255,.08);box-shadow:none;border:1px solid rgba(255,255,255,.1)}.btn.good{background:linear-gradient(135deg,#00b894,#00cec9)}.btn.warn{background:linear-gradient(135deg,#e17055,#fdcb6e);color:#111}.kv{display:grid;grid-template-columns:120px 1fr;gap:8px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.07)}.kv b{color:rgba(255,255,255,.72)}.kv span{color:rgba(255,255,255,.58);word-break:break-all}.log{height:330px;overflow:auto;background:#06070b;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px;font-family:"JetBrains Mono",Consolas,monospace;font-size:12px;color:#d7f7ef;white-space:pre-wrap}.progress{height:10px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;margin:14px 0}.bar{height:100%;width:0%;background:linear-gradient(90deg,#6c5ce7,#00cec9);transition:width .25s}.hint{font-size:13px;color:rgba(255,255,255,.55)}.warnbox{border:1px solid rgba(253,203,110,.28);background:rgba(253,203,110,.08);padding:14px;border-radius:14px;color:#ffeaa7;margin-top:14px}.okbox{display:none;border:1px solid rgba(0,206,201,.32);background:rgba(0,206,201,.08);padding:16px;border-radius:14px;margin-top:14px}.small{font-size:12px;color:rgba(255,255,255,.45)}code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px}.list{margin:8px 0 0 18px;color:rgba(255,255,255,.62)}a{color:#00cec9}.footer{text-align:center;color:rgba(255,255,255,.38);font-size:12px;margin-top:30px}.pill{display:inline-block;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.055);border-radius:999px;padding:4px 10px;margin:3px;color:rgba(255,255,255,.65);font-size:12px}
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div class="badge"><span class="dot"></span> 100% 浏览器本地处理 · 不上传文件</div>
+    <h1>XAPK → APK 离线转换签名工具</h1>
+    <p class="sub">把 APKPure 等来源的 XAPK 转成 Android 安装器可识别的 APK。支持 APK 根目录型 XAPK、单 APK 容器型 XAPK、普通 APK 重签名。所有解析、重打包、RSA 证书生成、JAR/APK v1 签名都在浏览器里完成。</p>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <label id="drop" class="drop">
+        <input id="file" type="file" accept=".xapk,.apk,.zip,application/zip,application/vnd.android.package-archive">
+        <div>
+          <strong>拖入 XAPK / APK，或点击选择</strong>
+          <p>建议使用 Chromium / Edge / Chrome；大文件处理时请保持页面打开。</p>
+        </div>
+      </label>
+      <div class="progress"><div id="bar" class="bar"></div></div>
+      <div class="row">
+        <button id="convert" class="btn" disabled>一键转换并签名</button>
+        <button id="download" class="btn good" disabled>下载 APK</button>
+        <button id="reset" class="btn secondary">重置</button>
+      </div>
+      <div id="done" class="okbox"></div>
+      <div class="warnbox">
+        <b>注意：</b>
+        <ul class="list">
+          <li>本工具会使用浏览器临时生成的调试证书重新签名，和官方签名不同。</li>
+          <li>如果手机已安装官方版同包名应用，请先卸载旧版再安装。</li>
+          <li>多 split APK 的 XAPK 不能可靠合并成单 APK；工具会检测并提示。</li>
+          <li>部分应用有 Play Integrity / 许可校验 / 自校验，重签名后可能能安装但无法正常运行。</li>
+        </ul>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h3 style="margin-top:0">文件信息</h3>
+      <div class="kv"><b>文件名</b><span id="name">未选择</span></div>
+      <div class="kv"><b>大小</b><span id="size">-</span></div>
+      <div class="kv"><b>类型判断</b><span id="kind">-</span></div>
+      <div class="kv"><b>包名</b><span id="pkg">-</span></div>
+      <div class="kv"><b>版本</b><span id="ver">-</span></div>
+      <div class="kv"><b>输出</b><span id="out">-</span></div>
+      <p class="hint">签名方案：JAR/APK Signature Scheme v1，生成 <code>META-INF/MANIFEST.MF</code>、<code>CERT.SF</code>、<code>CERT.RSA</code>。现代 Android 通常仍接受 v1 签名；如设备策略要求 v2/v3，请用 apksigner 二次签名。</p>
+      <div>
+        <span class="pill">离线 ZIP 解析</span><span class="pill">旧签名清理</span><span class="pill">RSA-2048</span><span class="pill">SHA-256</span><span class="pill">PKCS#7/CMS</span>
+      </div>
+    </aside>
+  </div>
+
+  <section class="card" style="margin-top:18px">
+    <h3 style="margin-top:0">处理日志</h3>
+    <div id="log" class="log"></div>
+  </section>
+
+  <div class="footer">Personal-use-gadget · XAPK/APK Converter · 纯静态单文件工具</div>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);let selectedFile=null,resultBlob=null,resultName='converted-signed.apk';
+function log(s){$('log').textContent+='['+new Date().toLocaleTimeString()+'] '+s+'\n';$('log').scrollTop=$('log').scrollHeight}
+function setBar(v){$('bar').style.width=Math.max(0,Math.min(100,v))+'%'}
+function fmt(n){const u=['B','KB','MB','GB'];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return n.toFixed(i?2:0)+' '+u[i]}
+function u8(s){return new TextEncoder().encode(s)}function str(a){return new TextDecoder().decode(a)}
+function concat(arrs){let n=arrs.reduce((a,b)=>a+b.length,0),o=new Uint8Array(n),p=0;for(const a of arrs){o.set(a,p);p+=a.length}return o}
+function hex(a){return [...new Uint8Array(a)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function b64(a){let s='',u=new Uint8Array(a);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode(...u.subarray(i,i+0x8000));return btoa(s).replace(/(.{76})/g,'$1\r\n')}
+function crc32(buf){let c=~0;for(let i=0;i<buf.length;i++){c^=buf[i];for(let k=0;k<8;k++)c=(c>>>1)^(0xedb88320&-(c&1))}return(~c)>>>0}
+function rd16(d,o){return d[o]|(d[o+1]<<8)}function rd32(d,o){return (d[o]|(d[o+1]<<8)|(d[o+2]<<16)|(d[o+3]<<24))>>>0}
+function wr16(a,v){a.push(v&255,(v>>>8)&255)}function wr32(a,v){a.push(v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255)}
+async function sha256(data){return new Uint8Array(await crypto.subtle.digest('SHA-256',data))}
+function findEOCD(d){for(let i=d.length-22;i>=Math.max(0,d.length-65558);i--)if(rd32(d,i)===0x06054b50)return i;throw Error('不是有效 ZIP/APK：找不到 EOCD')}
+function parseZip(d){const e=findEOCD(d),total=rd16(d,e+10),cdSize=rd32(d,e+12),cdOff=rd32(d,e+16);let p=cdOff,entries=[];for(let i=0;i<total;i++){if(rd32(d,p)!==0x02014b50)throw Error('中央目录损坏');const method=rd16(d,p+10),time=rd16(d,p+12),date=rd16(d,p+14),crc=rd32(d,p+16),csize=rd32(d,p+20),usize=rd32(d,p+24),nlen=rd16(d,p+28),xlen=rd16(d,p+30),clen=rd16(d,p+32),lho=rd32(d,p+42);const name=str(d.subarray(p+46,p+46+nlen));if(rd32(d,lho)!==0x04034b50)throw Error('本地文件头损坏：'+name);const ln=rd16(d,lho+26),lx=rd16(d,lho+28),dataOff=lho+30+ln+lx;entries.push({name,method,time,date,crc,csize,usize,localOffset:lho,dataOff,data:d.subarray(dataOff,dataOff+csize)});p+=46+nlen+xlen+clen}return entries}
+async function inflateRaw(data){if(!('DecompressionStream'in self))throw Error('浏览器不支持 DecompressionStream，无法解压 DEFLATE 条目');const ds=new DecompressionStream('deflate-raw');const r=new Blob([data]).stream().pipeThrough(ds);return new Uint8Array(await new Response(r).arrayBuffer())}
+async function getEntryBytes(e){if(e.method===0)return e.data;if(e.method===8)return await inflateRaw(e.data);throw Error('不支持的 ZIP 压缩方法 '+e.method+'：'+e.name)}
+function isDir(e){return e.name.endsWith('/')}
+function dosNow(){return {time:0,date:0x5621}}
+function buildZip(files){let out=[],cd=[],offset=0;for(const f of files){const name=u8(f.name),data=f.data,crc=f.crc??crc32(data),usize=f.usize??data.length,csize=f.csize??data.length,method=f.method??0,t=f.time??0,da=f.date??0x5621;let lh=[];wr32(lh,0x04034b50);wr16(lh,20);wr16(lh,0);wr16(lh,method);wr16(lh,t);wr16(lh,da);wr32(lh,crc);wr32(lh,csize);wr32(lh,usize);wr16(lh,name.length);wr16(lh,0);const lhb=new Uint8Array(lh);out.push(lhb,name,data);let ch=[];wr32(ch,0x02014b50);wr16(ch,0x0314);wr16(ch,20);wr16(ch,0);wr16(ch,method);wr16(ch,t);wr16(ch,da);wr32(ch,crc);wr32(ch,csize);wr32(ch,usize);wr16(ch,name.length);wr16(ch,0);wr16(ch,0);wr16(ch,0);wr16(ch,0);wr32(ch,0);wr32(ch,offset);cd.push(new Uint8Array(ch),name);offset+=lhb.length+name.length+data.length}const cdStart=offset,cdBlob=concat(cd);out.push(cdBlob);let eo=[];wr32(eo,0x06054b50);wr16(eo,0);wr16(eo,0);wr16(eo,files.length);wr16(eo,files.length);wr32(eo,cdBlob.length);wr32(eo,cdStart);wr16(eo,0);out.push(new Uint8Array(eo));return concat(out)}
+function pemBodyToBytes(pem){const b=pem.replace(/-----[^-]+-----|\s+/g,'');const bin=atob(b);let a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return a}
+function derLen(n){if(n<128)return Uint8Array.of(n);let a=[];while(n){a.unshift(n&255);n>>>=8}return Uint8Array.of(0x80|a.length,...a)}
+function der(tag,...parts){const body=concat(parts);return concat([Uint8Array.of(tag),derLen(body.length),body])}
+const seq=(...p)=>der(0x30,...p),set=(...p)=>der(0x31,...p),oct=x=>der(0x04,x),bit=x=>der(0x03,Uint8Array.of(0),x),nul=()=>Uint8Array.of(0x05,0x00),ctx=(n,...p)=>der(0xa0+n,...p),ctxPrim=(n,x)=>der(0x80+n,x),utf=s=>der(0x0c,u8(s)),print=s=>der(0x13,u8(s)),utc=s=>der(0x17,u8(s));
+function oid(s){const parts=s.split('.').map(Number),a=[40*parts[0]+parts[1]];for(const n0 of parts.slice(2)){let n=n0,st=[n&127];n>>=7;while(n){st.unshift(0x80|(n&127));n>>=7}a.push(...st)}return der(0x06,Uint8Array.from(a))}
+function intBytes(x){let a=[];if(typeof x==='number'){while(x){a.unshift(x&255);x>>>=8}if(!a.length)a=[0]}else a=[...x];if(a[0]&0x80)a.unshift(0);return der(0x02,Uint8Array.from(a))}
+function alg(oidv){return seq(oid(oidv),nul())}
+function name(cn){return seq(set(seq(oid('2.5.4.3'),utf(cn))))}
+function timeYY(d){const z=n=>String(n).padStart(2,'0');return z(d.getUTCFullYear()%100)+z(d.getUTCMonth()+1)+z(d.getUTCDate())+z(d.getUTCHours())+z(d.getUTCMinutes())+z(d.getUTCSeconds())+'Z'}
+async function makeCertAndKey(){log('生成 RSA-2048 调试密钥...');const kp=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);const spki=new Uint8Array(await crypto.subtle.exportKey('spki',kp.publicKey));const subj=name('Browser APK Debug');const now=new Date(),later=new Date(now.getTime()+3650*864e5);const tbs=seq(ctx(0,intBytes(2)),intBytes(Uint8Array.of(1,2,3,4,5,6,7,8)),alg('1.2.840.113549.1.1.11'),subj,seq(utc(timeYY(now)),utc(timeYY(later))),subj,spki);const sig=new Uint8Array(await crypto.subtle.sign({name:'RSASSA-PKCS1-v1_5'},kp.privateKey,tbs));const cert=seq(tbs,alg('1.2.840.113549.1.1.11'),bit(sig));return {privateKey:kp.privateKey,cert}}
+function signedAttrs(sfDigest){return set(seq(oid('1.2.840.113549.1.9.3'),set(oid('1.2.840.113549.1.7.1'))),seq(oid('1.2.840.113549.1.9.4'),set(oct(sfDigest))))}
+function cmsImplicitAttrs(attrs){const body=attrs.slice(2+derLen(attrs.length-2).length);return der(0xa0,body)}
+async function makePkcs7(sfBytes,cert,privateKey){const digest=await sha256(sfBytes);const attrs=signedAttrs(digest);const sig=new Uint8Array(await crypto.subtle.sign({name:'RSASSA-PKCS1-v1_5'},privateKey,attrs));const issuer=name('Browser APK Debug');const signer=seq(intBytes(1),seq(issuer,intBytes(Uint8Array.of(1,2,3,4,5,6,7,8))),alg('2.16.840.1.101.3.4.2.1'),cmsImplicitAttrs(attrs),alg('1.2.840.113549.1.1.1'),oct(sig));const sd=seq(intBytes(1),set(alg('2.16.840.1.101.3.4.2.1')),seq(oid('1.2.840.113549.1.7.1')),ctx(0,cert),set(signer));return seq(oid('1.2.840.113549.1.7.2'),ctx(0,sd))}
+function foldLine(line){let out='';while(line.length>70){out+=line.slice(0,70)+'\r\n ';line=line.slice(70)}return out+line+'\r\n'}
+async function makeV1Signature(files){let mfMain='Manifest-Version: 1.0\r\nCreated-By: Browser XAPK Converter\r\n\r\n',sections=[];for(const f of files){if(isDir(f)||f.name.startsWith('META-INF/'))continue;const plain=f.method===0?f.data:await getEntryBytes(f);const dig=b64(await sha256(plain)).replace(/\r\n$/,'');let sec=foldLine('Name: '+f.name)+foldLine('SHA-256-Digest: '+dig)+'\r\n';sections.push(sec)}const mf=mfMain+sections.join('');const mfBytes=u8(mf);const mfDigest=b64(await sha256(mfBytes)).replace(/\r\n$/,'');let sf='Signature-Version: 1.0\r\nCreated-By: Browser XAPK Converter\r\nSHA-256-Digest-Manifest: '+mfDigest+'\r\n\r\n';for(const sec of sections){const first=sec.split('\r\n')[0];const dig=b64(await sha256(u8(sec))).replace(/\r\n$/,'');sf+=first+'\r\n'+foldLine('SHA-256-Digest: '+dig)+'\r\n'}const {privateKey,cert}=await makeCertAndKey();const sfBytes=u8(sf);const rsa=await makePkcs7(sfBytes,cert,privateKey);return [{name:'META-INF/MANIFEST.MF',data:mfBytes,method:0},{name:'META-INF/CERT.SF',data:sfBytes,method:0},{name:'META-INF/CERT.RSA',data:rsa,method:0}]}
+function guessManifestText(entries){const e=entries.find(x=>x.name==='AndroidManifest.xml');if(!e||e.method!==0)return '';let a=e.data,s='';for(let i=0;i<a.length;i++){const c=a[i];if(c>=32&&c<127)s+=String.fromCharCode(c);else s+=' '}return s}
+function parseTextManifest(t){let pkg=(t.match(/package\s*=\s*["']([^"']+)/)||[])[1]||'';let ver=(t.match(/versionName\s*=\s*["']([^"']+)/)||[])[1]||'';return {pkg,ver}}
+function validApkRoot(entries){return entries.some(e=>e.name==='AndroidManifest.xml')&&entries.some(e=>/^classes\d*\.dex$/.test(e.name)||e.name==='resources.arsc')}
+async function selectBase(data,entries){if(validApkRoot(entries)){return {kind:'APK 根目录型 XAPK / APK',apkBytes:data,entries}}const apks=entries.filter(e=>e.name.toLowerCase().endsWith('.apk')&&!isDir(e));if(!apks.length)throw Error('XAPK 中没有找到 APK，也不是 APK 根目录结构');if(apks.length>1){const bases=apks.filter(e=>/base|universal|master/i.test(e.name));if(bases.length!==1)throw Error('检测到多个 split APK：'+apks.map(e=>e.name).join(', ')+'。split 包不能在浏览器中可靠合并成单 APK，请使用系统包安装器/SAI 安装。');const b=await getEntryBytes(bases[0]);return {kind:'内含单 base APK 的 XAPK',apkBytes:b,entries:parseZip(b)}}const b=await getEntryBytes(apks[0]);return {kind:'内含单 APK 的 XAPK',apkBytes:b,entries:parseZip(b)}}
+async function convert(){try{if(!selectedFile)return;setBar(2);resultBlob=null;$('download').disabled=true;$('done').style.display='none';log('读取文件：'+selectedFile.name);const data=new Uint8Array(await selectedFile.arrayBuffer());setBar(10);const entries=parseZip(data);log('ZIP 条目数：'+entries.length);const base=await selectBase(data,entries);$('kind').textContent=base.kind;log('类型：'+base.kind);setBar(20);let apkEntries=base.entries.filter(e=>!e.name.startsWith('META-INF/')&&!e.name.startsWith('__MACOSX/')&&!e.name.endsWith('.RSA')&&!e.name.endsWith('.SF'));if(!validApkRoot(apkEntries))throw Error('选中的 APK 缺少 AndroidManifest.xml 或 dex/resources，无法打包');const mt=guessManifestText(apkEntries),pm=parseTextManifest(mt);$('pkg').textContent=pm.pkg||'二进制 Manifest，浏览器未解析出包名';$('ver').textContent=pm.ver||'二进制 Manifest，浏览器未解析出版本';log('清理旧签名 META-INF，保留条目：'+apkEntries.length);setBar(32);log('生成 v1 签名文件...');const sigs=await makeV1Signature(apkEntries);setBar(62);const files=[...apkEntries.map(e=>({name:e.name,data:e.data,method:e.method,crc:e.crc,csize:e.csize,usize:e.usize,time:e.time,date:e.date})),...sigs];log('重建 APK ZIP 中央目录...');const apk=buildZip(files);setBar(88);resultBlob=new Blob([apk],{type:'application/vnd.android.package-archive'});const stem=selectedFile.name.replace(/\.(xapk|apk|zip)$/i,'');resultName=stem+'_converted_signed.apk';$('out').textContent=resultName+' / '+fmt(apk.length);$('download').disabled=false;setBar(100);$('done').style.display='block';$('done').innerHTML='<b>转换完成。</b><br>输出文件：<code>'+resultName+'</code><br>大小：'+fmt(apk.length)+'<br><span class="small">如果安装提示签名冲突，请先卸载同包名旧版本。</span>';log('完成：'+resultName+'，'+fmt(apk.length))}catch(e){setBar(0);log('错误：'+(e&&e.stack?e.stack:e));alert('转换失败：'+(e.message||e))}}
+$('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('drag')});$('drop').addEventListener('dragleave',()=>$('drop').classList.remove('drag'));$('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('drag');if(e.dataTransfer.files[0])pick(e.dataTransfer.files[0])});$('file').addEventListener('change',e=>{if(e.target.files[0])pick(e.target.files[0])});function pick(f){selectedFile=f;resultBlob=null;$('convert').disabled=false;$('download').disabled=true;$('name').textContent=f.name;$('size').textContent=fmt(f.size);$('kind').textContent='待分析';$('pkg').textContent='-';$('ver').textContent='-';$('out').textContent='-';$('log').textContent='';setBar(0);log('已选择：'+f.name+' / '+fmt(f.size))}$('convert').onclick=convert;$('download').onclick=()=>{if(!resultBlob)return;const a=document.createElement('a');a.href=URL.createObjectURL(resultBlob);a.download=resultName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};$('reset').onclick=()=>location.reload();
+</script>
+</body>
+</html>
