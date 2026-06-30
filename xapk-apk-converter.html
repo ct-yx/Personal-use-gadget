@@ -31,11 +31,37 @@
         <button id="download" class="btn good" disabled>下载 APK</button>
         <button id="reset" class="btn secondary">重置</button>
       </div>
+      <details style="margin-top:14px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);border-radius:14px;padding:12px 14px">
+        <summary style="cursor:pointer;font-weight:800;color:#dfe6ff">高级签名选项</summary>
+        <label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:rgba(255,255,255,.72)">
+          <input id="persistKey" type="checkbox" style="width:auto;margin-top:5px;display:block">
+          <span><b>使用浏览器本地固定签名密钥</b><br><span class="small">首次勾选会生成一套 RSA-2048 调试私钥和证书并保存到 IndexedDB；以后同一浏览器转换出来的 APK 会使用同一签名，可相互覆盖升级。不会上传服务器，但清理浏览器数据会丢失。</span></span>
+        </label>
+        <label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:rgba(255,255,255,.72)">
+          <input id="passwordKey" type="checkbox" style="width:auto;margin-top:5px;display:block">
+          <span><b>使用浏览器保存密码辅助固定签名</b><br><span class="small">浏览器不能直接读取密码管理器，但可通过标准账号/密码输入框触发保存和自动填充。工具会用“软件名称 + 签名口令”加密保存签名私钥；下次自动填充同一口令后即可复用同一签名。</span></span>
+        </label>
+        <form id="signPassForm" autocomplete="on" style="margin-top:10px">
+          <div class="row">
+            <input id="slotName" name="username" autocomplete="username" type="text" placeholder="软件名称/签名槽名，例如：Qwen Studio(国际版)；留空则用文件名" style="flex:1;min-width:230px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:#fff;border-radius:10px;padding:11px 12px;display:block">
+            <input id="slotPass" name="password" autocomplete="current-password" type="password" placeholder="签名口令：可让浏览器保存/自动填充" style="flex:1;min-width:230px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:#fff;border-radius:10px;padding:11px 12px;display:block">
+          </div>
+          <button type="submit" style="position:absolute;left:-9999px;width:1px;height:1px">保存签名口令</button>
+        </form>
+        <div class="row" style="margin-top:10px">
+          <button id="savePasswordHint" class="btn secondary" type="button">触发浏览器保存口令</button>
+          <button id="resetPasswordSlot" class="btn warn" type="button">删除当前口令签名槽</button>
+          <button id="resetKey" class="btn warn" type="button">删除通用固定签名密钥</button>
+        </div>
+        <div id="keyStatus" class="small" style="margin-top:10px">密钥状态：检测中...</div>
+      </details>
       <div id="done" class="okbox"></div>
       <div class="warnbox">
         <b>注意：</b>
         <ul class="list">
-          <li>本工具会使用浏览器临时生成的调试证书重新签名，和官方签名不同。</li>
+          <li>默认使用浏览器临时生成的调试证书重新签名，和官方签名不同。</li>
+          <li>高级选项可启用“本地固定签名密钥”，用于后续覆盖升级同一工具签出的 APK。</li>
+          <li>也可启用“浏览器保存密码辅助固定签名”：用软件名和口令加密保存签名私钥，方便跨会话复用。</li>
           <li>如果手机已安装官方版同包名应用，请先卸载旧版再安装。</li>
           <li>多 split APK 的 XAPK 不能可靠合并成单 APK；工具会检测并提示。</li>
           <li>部分应用有 Play Integrity / 许可校验 / 自校验，重签名后可能能安装但无法正常运行。</li>
@@ -95,7 +121,32 @@ function intBytes(x){let a=[];if(typeof x==='number'){while(x){a.unshift(x&255);
 function alg(oidv){return seq(oid(oidv),nul())}
 function name(cn){return seq(set(seq(oid('2.5.4.3'),utf(cn))))}
 function timeYY(d){const z=n=>String(n).padStart(2,'0');return z(d.getUTCFullYear()%100)+z(d.getUTCMonth()+1)+z(d.getUTCDate())+z(d.getUTCHours())+z(d.getUTCMinutes())+z(d.getUTCSeconds())+'Z'}
-async function makeCertAndKey(){log('生成 RSA-2048 调试密钥...');const kp=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);const spki=new Uint8Array(await crypto.subtle.exportKey('spki',kp.publicKey));const subj=name('Browser APK Debug');const now=new Date(),later=new Date(now.getTime()+3650*864e5);const tbs=seq(ctx(0,intBytes(2)),intBytes(Uint8Array.of(1,2,3,4,5,6,7,8)),alg('1.2.840.113549.1.1.11'),subj,seq(utc(timeYY(now)),utc(timeYY(later))),subj,spki);const sig=new Uint8Array(await crypto.subtle.sign({name:'RSASSA-PKCS1-v1_5'},kp.privateKey,tbs));const cert=seq(tbs,alg('1.2.840.113549.1.1.11'),bit(sig));return {privateKey:kp.privateKey,cert}}
+const KEY_DB='xapk-apk-converter-db',KEY_STORE='kv',KEY_NAME='persistent-debug-signer-v1';
+const PASS_PREFIX='password-slot-signer-v1:';
+function openKeyDb(){return new Promise((res,rej)=>{const r=indexedDB.open(KEY_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(KEY_STORE);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function idbGet(k){const db=await openKeyDb();return new Promise((res,rej)=>{const tx=db.transaction(KEY_STORE,'readonly'),st=tx.objectStore(KEY_STORE),r=st.get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);tx.oncomplete=()=>db.close()})}
+async function idbSet(k,v){const db=await openKeyDb();return new Promise((res,rej)=>{const tx=db.transaction(KEY_STORE,'readwrite'),st=tx.objectStore(KEY_STORE),r=st.put(v,k);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);tx.oncomplete=()=>db.close()})}
+async function idbDel(k){const db=await openKeyDb();return new Promise((res,rej)=>{const tx=db.transaction(KEY_STORE,'readwrite'),st=tx.objectStore(KEY_STORE),r=st.delete(k);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);tx.oncomplete=()=>db.close()})}
+async function generateCertAndKey(cn='Browser APK Debug'){log('生成 RSA-2048 调试密钥...');const kp=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);const spki=new Uint8Array(await crypto.subtle.exportKey('spki',kp.publicKey));const subj=name(cn);const now=new Date(),later=new Date(now.getTime()+3650*864e5);const tbs=seq(ctx(0,intBytes(2)),intBytes(Uint8Array.of(1,2,3,4,5,6,7,8)),alg('1.2.840.113549.1.1.11'),subj,seq(utc(timeYY(now)),utc(timeYY(later))),subj,spki);const sig=new Uint8Array(await crypto.subtle.sign({name:'RSASSA-PKCS1-v1_5'},kp.privateKey,tbs));const cert=seq(tbs,alg('1.2.840.113549.1.1.11'),bit(sig));return {privateKey:kp.privateKey,cert}}
+async function exportSigner(signer){return {pkcs8:new Uint8Array(await crypto.subtle.exportKey('pkcs8',signer.privateKey)),cert:signer.cert,createdAt:new Date().toISOString()}}
+async function importSigner(saved){const privateKey=await crypto.subtle.importKey('pkcs8',saved.pkcs8,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},true,['sign']);return {privateKey,cert:new Uint8Array(saved.cert)}}
+async function stableHex(s){return hex(await sha256(u8(s)))}
+function defaultSlotName(){return selectedFile?selectedFile.name.replace(/\.(xapk|apk|zip)$/i,'').trim():'default'}
+function currentSlotName(){return (($('slotName')&&$('slotName').value.trim())||defaultSlotName()).trim()||'default'}
+async function currentPassSlot(){const raw=currentSlotName();const id=await stableHex('xapk-password-signer-v1:'+raw);return {raw,id,key:PASS_PREFIX+id}}
+function randomBytes(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return a}
+async function deriveAesKey(pass,salt,slotRaw){const base=await crypto.subtle.importKey('raw',u8(pass),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt:concat([u8('xapk-signer:'),salt,u8(slotRaw)]),iterations:210000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function encryptSignerForPassword(signer,pass,slotRaw){const exported=await exportSigner(signer);const salt=randomBytes(16),iv=randomBytes(12);const key=await deriveAesKey(pass,salt,slotRaw);const plain=u8(JSON.stringify({pkcs8:b64(exported.pkcs8).replace(/\r\n/g,''),cert:b64(exported.cert).replace(/\r\n/g,''),createdAt:exported.createdAt}));const cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plain));return {mode:'password-aes-gcm-v1',salt,iv,cipher,createdAt:exported.createdAt}}
+async function decryptSignerForPassword(saved,pass,slotRaw){const key=await deriveAesKey(pass,new Uint8Array(saved.salt),slotRaw);const plain=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(saved.iv)},key,new Uint8Array(saved.cipher)));const obj=JSON.parse(str(plain));const fromB64=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));return importSigner({pkcs8:fromB64(obj.pkcs8),cert:fromB64(obj.cert),createdAt:obj.createdAt})}
+async function makeCertAndKey(){
+  if($('passwordKey')&&$('passwordKey').checked){
+    const pass=$('slotPass')?$('slotPass').value:''; if(!pass)throw Error('已启用浏览器保存密码辅助签名，但签名口令为空。请填写或让浏览器自动填充口令。');
+    const slot=await currentPassSlot(); const saved=await idbGet(slot.key);
+    if(saved){log('使用口令签名槽：'+slot.raw+' / '+slot.id.slice(0,16)+'...');return decryptSignerForPassword(saved,pass,slot.raw)}
+    log('首次创建口令签名槽：'+slot.raw+' / '+slot.id.slice(0,16)+'...');const signer=await generateCertAndKey('APK Pass Slot '+slot.id.slice(0,16));await idbSet(slot.key,await encryptSignerForPassword(signer,pass,slot.raw));await updateKeyStatus();return signer
+  }
+  if($('persistKey')&&$('persistKey').checked){const saved=await idbGet(KEY_NAME);if(saved){log('使用浏览器本地保存的通用固定签名密钥。');return importSigner(saved)}log('首次创建浏览器本地通用固定签名密钥...');const signer=await generateCertAndKey('Browser APK Persistent Debug');await idbSet(KEY_NAME,await exportSigner(signer));await updateKeyStatus();return signer}
+  log('使用临时调试签名密钥，本次页面会话后不会保留。');return generateCertAndKey('Browser APK Debug')}
 function signedAttrs(sfDigest){return set(seq(oid('1.2.840.113549.1.9.3'),set(oid('1.2.840.113549.1.7.1'))),seq(oid('1.2.840.113549.1.9.4'),set(oct(sfDigest))))}
 function cmsImplicitAttrs(attrs){const body=attrs.slice(2+derLen(attrs.length-2).length);return der(0xa0,body)}
 async function makePkcs7(sfBytes,cert,privateKey){const digest=await sha256(sfBytes);const attrs=signedAttrs(digest);const sig=new Uint8Array(await crypto.subtle.sign({name:'RSASSA-PKCS1-v1_5'},privateKey,attrs));const issuer=name('Browser APK Debug');const signer=seq(intBytes(1),seq(issuer,intBytes(Uint8Array.of(1,2,3,4,5,6,7,8))),alg('2.16.840.1.101.3.4.2.1'),cmsImplicitAttrs(attrs),alg('1.2.840.113549.1.1.1'),oct(sig));const sd=seq(intBytes(1),set(alg('2.16.840.1.101.3.4.2.1')),seq(oid('1.2.840.113549.1.7.1')),ctx(0,cert),set(signer));return seq(oid('1.2.840.113549.1.7.2'),ctx(0,sd))}
@@ -106,7 +157,9 @@ function parseTextManifest(t){let pkg=(t.match(/package\s*=\s*["']([^"']+)/)||[]
 function validApkRoot(entries){return entries.some(e=>e.name==='AndroidManifest.xml')&&entries.some(e=>/^classes\d*\.dex$/.test(e.name)||e.name==='resources.arsc')}
 async function selectBase(data,entries){if(validApkRoot(entries)){return {kind:'APK 根目录型 XAPK / APK',apkBytes:data,entries}}const apks=entries.filter(e=>e.name.toLowerCase().endsWith('.apk')&&!isDir(e));if(!apks.length)throw Error('XAPK 中没有找到 APK，也不是 APK 根目录结构');if(apks.length>1){const bases=apks.filter(e=>/base|universal|master/i.test(e.name));if(bases.length!==1)throw Error('检测到多个 split APK：'+apks.map(e=>e.name).join(', ')+'。split 包不能在浏览器中可靠合并成单 APK，请使用系统包安装器/SAI 安装。');const b=await getEntryBytes(bases[0]);return {kind:'内含单 base APK 的 XAPK',apkBytes:b,entries:parseZip(b)}}const b=await getEntryBytes(apks[0]);return {kind:'内含单 APK 的 XAPK',apkBytes:b,entries:parseZip(b)}}
 async function convert(){try{if(!selectedFile)return;setBar(2);resultBlob=null;$('download').disabled=true;$('done').style.display='none';log('读取文件：'+selectedFile.name);const data=new Uint8Array(await selectedFile.arrayBuffer());setBar(10);const entries=parseZip(data);log('ZIP 条目数：'+entries.length);const base=await selectBase(data,entries);$('kind').textContent=base.kind;log('类型：'+base.kind);setBar(20);let apkEntries=base.entries.filter(e=>!e.name.startsWith('META-INF/')&&!e.name.startsWith('__MACOSX/')&&!e.name.endsWith('.RSA')&&!e.name.endsWith('.SF'));if(!validApkRoot(apkEntries))throw Error('选中的 APK 缺少 AndroidManifest.xml 或 dex/resources，无法打包');const mt=guessManifestText(apkEntries),pm=parseTextManifest(mt);$('pkg').textContent=pm.pkg||'二进制 Manifest，浏览器未解析出包名';$('ver').textContent=pm.ver||'二进制 Manifest，浏览器未解析出版本';log('清理旧签名 META-INF，保留条目：'+apkEntries.length);setBar(32);log('生成 v1 签名文件...');const sigs=await makeV1Signature(apkEntries);setBar(62);const files=[...apkEntries.map(e=>({name:e.name,data:e.data,method:e.method,crc:e.crc,csize:e.csize,usize:e.usize,time:e.time,date:e.date})),...sigs];log('重建 APK ZIP 中央目录...');const apk=buildZip(files);setBar(88);resultBlob=new Blob([apk],{type:'application/vnd.android.package-archive'});const stem=selectedFile.name.replace(/\.(xapk|apk|zip)$/i,'');resultName=stem+'_converted_signed.apk';$('out').textContent=resultName+' / '+fmt(apk.length);$('download').disabled=false;setBar(100);$('done').style.display='block';$('done').innerHTML='<b>转换完成。</b><br>输出文件：<code>'+resultName+'</code><br>大小：'+fmt(apk.length)+'<br><span class="small">如果安装提示签名冲突，请先卸载同包名旧版本。</span>';log('完成：'+resultName+'，'+fmt(apk.length))}catch(e){setBar(0);log('错误：'+(e&&e.stack?e.stack:e));alert('转换失败：'+(e.message||e))}}
-$('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('drag')});$('drop').addEventListener('dragleave',()=>$('drop').classList.remove('drag'));$('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('drag');if(e.dataTransfer.files[0])pick(e.dataTransfer.files[0])});$('file').addEventListener('change',e=>{if(e.target.files[0])pick(e.target.files[0])});function pick(f){selectedFile=f;resultBlob=null;$('convert').disabled=false;$('download').disabled=true;$('name').textContent=f.name;$('size').textContent=fmt(f.size);$('kind').textContent='待分析';$('pkg').textContent='-';$('ver').textContent='-';$('out').textContent='-';$('log').textContent='';setBar(0);log('已选择：'+f.name+' / '+fmt(f.size))}$('convert').onclick=convert;$('download').onclick=()=>{if(!resultBlob)return;const a=document.createElement('a');a.href=URL.createObjectURL(resultBlob);a.download=resultName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};$('reset').onclick=()=>location.reload();
+$('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').classList.add('drag')});$('drop').addEventListener('dragleave',()=>$('drop').classList.remove('drag'));$('drop').addEventListener('drop',e=>{e.preventDefault();$('drop').classList.remove('drag');if(e.dataTransfer.files[0])pick(e.dataTransfer.files[0])});$('file').addEventListener('change',e=>{if(e.target.files[0])pick(e.target.files[0])});function pick(f){selectedFile=f;resultBlob=null;$('convert').disabled=false;$('download').disabled=true;$('name').textContent=f.name;$('size').textContent=fmt(f.size);$('kind').textContent='待分析';$('pkg').textContent='-';$('ver').textContent='-';$('out').textContent='-';$('log').textContent='';setBar(0);if($('slotName')&&!$('slotName').value)$('slotName').placeholder='默认：'+defaultSlotName();log('已选择：'+f.name+' / '+fmt(f.size));updateKeyStatus()}
+async function updateKeyStatus(){try{const saved=await idbGet(KEY_NAME);let msg=saved?'通用固定密钥：已保存，创建时间 '+(saved.createdAt||'未知'):'通用固定密钥：未保存';if($('slotName')){const slot=await currentPassSlot();const ps=await idbGet(slot.key);msg+='；口令槽：'+slot.raw+' / '+slot.id.slice(0,16)+'... / '+(ps?'已保存加密私钥':'未创建')}$('keyStatus').textContent='密钥状态：'+msg}catch(e){$('keyStatus').textContent='密钥状态：当前浏览器不支持或禁止 IndexedDB'}}
+$('convert').onclick=convert;$('resetKey').onclick=async()=>{if(confirm('确定删除浏览器本地通用固定签名密钥？删除后新生成的 APK 将不能覆盖旧密钥签出的 APK。')){await idbDel(KEY_NAME);await updateKeyStatus();log('已删除通用固定签名密钥。')}};$('resetPasswordSlot').onclick=async()=>{const slot=await currentPassSlot();if(confirm('确定删除口令签名槽「'+slot.raw+'」？删除后会重新生成该名称的签名。')){await idbDel(slot.key);await updateKeyStatus();log('已删除口令签名槽：'+slot.raw)}};$('savePasswordHint').onclick=()=>{if(!$('slotName').value)$('slotName').value=defaultSlotName();if(!$('slotPass').value){alert('请先填写签名口令，再点击保存。浏览器是否弹出保存密码提示取决于浏览器策略。');return}$('signPassForm').requestSubmit()};$('signPassForm').addEventListener('submit',e=>{e.preventDefault();log('已提交签名口令表单；如果浏览器支持，会提示保存/更新密码。')});for(const id of ['slotName','slotPass'])if($(id))$(id).addEventListener('input',updateKeyStatus);if($('passwordKey'))$('passwordKey').addEventListener('change',()=>{if($('passwordKey').checked&&$('persistKey'))$('persistKey').checked=false;updateKeyStatus()});if($('persistKey'))$('persistKey').addEventListener('change',()=>{if($('persistKey').checked&&$('passwordKey'))$('passwordKey').checked=false;updateKeyStatus()});updateKeyStatus();$('download').onclick=()=>{if(!resultBlob)return;const a=document.createElement('a');a.href=URL.createObjectURL(resultBlob);a.download=resultName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)};$('reset').onclick=()=>location.reload();
 </script>
 </body>
 </html>
