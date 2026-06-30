@@ -782,6 +782,7 @@ const tools = [
 
 function renderTools(filter = 'all') {
   const grid = document.getElementById('toolGrid');
+  if (!grid) return;
   const filtered = filter === 'all' ? tools : tools.filter(t => t.filter === filter);
   grid.innerHTML = filtered.map((t, i) => `
     <div class="tool-card ${['pdf-merger','xapk-apk-converter','hotspot-key'].includes(t.id) ? 'featured' : ''}" data-filter="${t.filter}" data-id="${t.id}">
@@ -799,6 +800,7 @@ function renderTools(filter = 'all') {
       </div>
     </div>
   `).join('');
+  document.body.classList.add('cards-ready');
 
   // 点击整个卡片也能打开
   document.querySelectorAll('.tool-card').forEach((card, i) => {

@@ -730,3 +730,31 @@ body .mg-particles::before {
     transform: none;
   }
 }
+
+/* ─── Homepage render safety patch ───
+   首页工具卡片是核心内容，不能依赖动画结束后才可见。
+   某些浏览器/减少动态效果/全局动画覆盖会让 .tool-card 停在 opacity:0。
+*/
+body.page-home .container,
+body.page-home .tool-grid {
+  overflow: visible !important;
+}
+
+body.page-home .tool-grid {
+  min-height: 260px;
+  display: grid !important;
+}
+
+body.page-home .tool-card {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.page-home .tool-card {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
