@@ -22,8 +22,8 @@
 <meta name="twitter:description" content="二维码工具箱，支持文本和链接生成二维码、自定义颜色尺寸纠错级、图片解码识别与摄像头扫描，浏览器本地运行。">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"二维码生成与解码工具","url":"https://ct-yx.github.io/Personal-use-gadget/qr-tool.html","description":"二维码工具箱，支持文本和链接生成二维码、自定义颜色尺寸纠错级、图片解码识别与摄像头扫描，浏览器本地运行。","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","browserRequirements":"Requires a modern browser with JavaScript enabled.","isAccessibleForFree":true,"inLanguage":"zh-CN","publisher":{"@type":"Person","name":"ct-yx"},"offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}}</script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="vendor/jsQR.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -210,35 +210,65 @@
   function switchTab(name) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    if (name === 'generate') { document.querySelectorAll('.tab')[0].classList.add('active'); document.getElementById('panel-generate').classList.add('active'); }
+    if (name === 'generate') { document.querySelectorAll('.tab')[0].classList.add('active'); document.getElementById('panel-generate').classList.add('active'); stopCamera(); }
     else { document.querySelectorAll('.tab')[1].classList.add('active'); document.getElementById('panel-decode').classList.add('active'); }
-    if (name === 'decode') stopCamera();
+  }
+
+  function getQrDataUrl() {
+    const canvas = document.querySelector('#qrcode canvas');
+    if (canvas) return canvas.toDataURL('image/png');
+    const img = document.querySelector('#qrcode img');
+    if (img && img.src) return img.src;
+    return '';
   }
 
   function generateQR() {
     const input = document.getElementById('qrInput').value.trim();
     if (!input) { alert('请输入内容'); return; }
-    const size = parseInt(document.getElementById('qrSize').value);
+    if (typeof QRCode === 'undefined') {
+      alert('二维码生成库未加载。请刷新页面；若离线使用，请确认 vendor/qrcode.min.js 存在。');
+      return;
+    }
+    const size = parseInt(document.getElementById('qrSize').value, 10);
     const level = document.getElementById('qrLevel').value;
     const dark = document.getElementById('qrDark').value;
     const container = document.getElementById('qrcode');
     container.innerHTML = '';
-    if (qrCodeInstance) { qrCodeInstance.clear(); qrCodeInstance = null; }
+    lastQrDataUrl = null;
+    qrCodeInstance = null;
     try {
-      qrCodeInstance = new QRCode(container, { text: input, width: size, height: size, colorDark: dark, colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel[level] });
+      qrCodeInstance = new QRCode(container, {
+        text: input,
+        width: size,
+        height: size,
+        colorDark: dark,
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel[level] || QRCode.CorrectLevel.M
+      });
     } catch(e) { alert('生成失败：' + e.message); return; }
     setTimeout(() => {
-      const canvas = container.querySelector('canvas');
-      if (canvas) lastQrDataUrl = canvas.toDataURL('image/png');
+      lastQrDataUrl = getQrDataUrl();
+      if (!lastQrDataUrl) { alert('生成失败：未找到二维码图像'); return; }
       document.getElementById('qrOutput').style.display = 'flex';
       document.getElementById('qrMeta').textContent = size+'×'+size+' · 纠错: '+level+' · 长度: '+input.length+' 字符';
-    }, 50);
+    }, 80);
   }
-  function downloadQR() { if (!lastQrDataUrl) return; const a = document.createElement('a'); a.href = lastQrDataUrl; a.download = 'qrcode.png'; a.click(); }
+  function downloadQR() {
+    lastQrDataUrl = lastQrDataUrl || getQrDataUrl();
+    if (!lastQrDataUrl) { alert('请先生成二维码'); return; }
+    const a = document.createElement('a'); a.href = lastQrDataUrl; a.download = 'qrcode.png'; a.click();
+  }
   async function copyQRCanvas() {
-    if (!lastQrDataUrl) return;
-    try { const blob = await (await fetch(lastQrDataUrl)).blob(); await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); toast('✅ 已复制到剪贴板'); }
-    catch { document.querySelector('#qrcode canvas')?.toBlob(async b=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);toast('✅ 已复制');}catch{alert('复制失败，请使用下载');}}); }
+    lastQrDataUrl = lastQrDataUrl || getQrDataUrl();
+    if (!lastQrDataUrl) { alert('请先生成二维码'); return; }
+    if (!navigator.clipboard || typeof ClipboardItem === 'undefined') { alert('当前浏览器不支持复制图片，请使用下载 PNG。'); return; }
+    try {
+      const blob = await (await fetch(lastQrDataUrl)).blob();
+      await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+      toast('✅ 已复制到剪贴板');
+    } catch(e) {
+      alert('复制失败，请使用下载 PNG。' + (e.message ? '\n' + e.message : ''));
+    }
   }
 
   const dropZone = document.getElementById('dropZone');
@@ -255,6 +285,11 @@
 
   function decodeImage(file) {
     decodeResult.classList.remove('show'); decodeError.classList.remove('show');
+    if (typeof jsQR === 'undefined') {
+      decodeError.textContent = '❌ 二维码解码库未加载。请刷新页面；若离线使用，请确认 vendor/jsQR.js 存在。';
+      decodeError.classList.add('show');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
@@ -281,6 +316,12 @@
 
   async function startCamera() {
     try {
+      if (typeof jsQR === 'undefined') {
+        throw new Error('二维码解码库未加载，请刷新页面或确认 vendor/jsQR.js 存在');
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('当前浏览器不支持摄像头访问');
+      }
       cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } } });
       cameraPreview.srcObject = cameraStream;
       cameraPreview.style.display = 'block';
