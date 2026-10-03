@@ -2621,9 +2621,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       from { opacity: 0; transform: translateX(0.75rem); }
       to { opacity: 1; transform: translateX(0); }
     }
-    /* Bottom (default): the notes keep their full-width card row and the index
-       follows as one panel whose groups flow into columns, so nothing scrolls
-       inside it. The placement toggle sits in the index header. */
+    /* Bottom (default): notes keep their full-width card row and the index
+       follows as one panel. Dense indexes use two balanced columns. */
     html[data-reader-rail="bottom"] .reader-rail {
       display: grid;
       grid-template-areas: "cards" "index";
@@ -2650,19 +2649,21 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     }
     html[data-reader-rail="bottom"] .node-outline-head { padding: 1rem 2.5rem 0.375rem 0.25rem; }
     html[data-reader-rail="bottom"] .node-outline-list {
-      columns: 15rem;
+      display: grid;
+      grid-template-columns: repeat(var(--node-outline-columns, 1), minmax(0, 1fr));
+      align-items: start;
       column-gap: 1.75rem;
       padding: 0;
       overflow: visible;
       -webkit-mask-image: none;
       mask-image: none;
     }
-    /* Named groups stay whole; a single unnamed group may split across columns,
-       where a continuous spine would read as a broken line. */
+    html[data-reader-rail="bottom"] .node-outline-column,
+    html[data-reader-rail="bottom"] .node-outline-column-list { min-width: 0; margin: 0; padding: 0; list-style: none; }
     html[data-reader-rail="bottom"] .node-outline-group + .node-outline-group { margin-top: 0; }
-    html[data-reader-rail="bottom"] .node-outline-group:has(> .node-outline-heading) { break-inside: avoid; padding-bottom: 0.25rem; }
+    html[data-reader-rail="bottom"] .node-outline-group:has(> .node-outline-heading) { padding-bottom: 0.25rem; }
     html[data-reader-rail="bottom"] .node-outline-group:not(:has(> .node-outline-heading)) > ul::before { display: none; }
-    html[data-reader-rail="bottom"] .node-outline-group li { break-inside: avoid; }
+    html[data-reader-rail="bottom"] .node-outline-heading[data-continuation="true"] > span:first-child::before { content: "↳ "; color: var(--text-dim); }
     .rail-controls { display: none; }
     html:is([data-reader-rail="true"], [data-reader-rail="overlay"], [data-reader-rail="bottom"]) .rail-controls {
       display: flex;
@@ -2754,6 +2755,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       font-variant-numeric: tabular-nums;
     }
     .node-outline-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      align-content: start;
       flex: 1 1 auto;
       min-height: 0;
       margin: 0 -0.375rem;
@@ -2764,6 +2768,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), transparent);
       mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), transparent);
     }
+    .node-outline-column,
+    .node-outline-column-list { min-width: 0; margin: 0; padding: 0; list-style: none; }
     .node-outline-list::-webkit-scrollbar { display: none; }
     .node-outline-group + .node-outline-group { margin-top: 0.25rem; }
     .node-outline-group > ul {
@@ -12502,53 +12508,81 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         byContext[context].nodes.push(node);
       });
 
+      var columnCount = nodes.length >= 12 ? 2 : 1;
+      var splitAt = columnCount === 2 ? Math.ceil(nodes.length / 2) : nodes.length;
+      var columns = [];
+      var columnIndex = 0;
+      var columnSize = 0;
+      list.style.setProperty('--node-outline-columns', String(columnCount));
+      for (var columnNumber = 0; columnNumber < columnCount; columnNumber += 1) {
+        var column = document.createElement('li');
+        column.className = 'node-outline-column';
+        var columnList = document.createElement('ol');
+        columnList.className = 'node-outline-column-list';
+        column.appendChild(columnList);
+        list.appendChild(column);
+        columns.push(columnList);
+      }
+
       groups.forEach(function (group) {
-        var section = document.createElement('li');
-        section.className = 'node-outline-group';
-        if (groups.length > 1 && group.label) {
-          var heading = document.createElement('span');
-          heading.className = 'node-outline-heading';
-          var headingLabel = document.createElement('span');
-          headingLabel.textContent = group.label;
-          var headingCount = document.createElement('small');
-          headingCount.textContent = String(group.nodes.length);
-          heading.appendChild(headingLabel);
-          heading.appendChild(headingCount);
-          section.appendChild(heading);
-        }
-        var items = document.createElement('ul');
-        group.nodes.forEach(function (node) {
-          var id = node.getAttribute('data-node-id');
-          var item = document.createElement('li');
-          var button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'node-outline-item';
-          button.setAttribute('data-outline-node', id);
-          button.style.setProperty('--outline-tone', 'var(--' + tone(node) + '-stroke)');
-          var dot = document.createElement('span');
-          dot.className = 'node-outline-dot';
-          dot.setAttribute('aria-hidden', 'true');
-          var label = document.createElement('strong');
-          label.textContent = node.getAttribute('data-node-label');
-          button.appendChild(dot);
-          button.appendChild(label);
-          var sublabel = node.getAttribute('data-node-sublabel');
-          if (sublabel) {
-            var detail = document.createElement('small');
-            detail.textContent = sublabel;
-            button.appendChild(detail);
+        var offset = 0;
+        while (offset < group.nodes.length) {
+          if (columnIndex === 0 && columnSize >= splitAt && columnCount === 2) {
+            columnIndex = 1;
+            columnSize = 0;
           }
-          button.addEventListener('pointerenter', function () { preview(id); });
-          button.addEventListener('focus', function () { preview(id); });
-          button.addEventListener('pointerleave', clearPreview);
-          button.addEventListener('blur', clearPreview);
-          button.addEventListener('click', function () { select(id); });
-          buttons[id] = button;
-          item.appendChild(button);
-          items.appendChild(item);
-        });
-        section.appendChild(items);
-        list.appendChild(section);
+          var take = columnIndex === 0 ? Math.min(group.nodes.length - offset, splitAt - columnSize) : group.nodes.length - offset;
+          var groupNodes = group.nodes.slice(offset, offset + take);
+          var section = document.createElement('li');
+          section.className = 'node-outline-group';
+          if ((groups.length > 1 || offset > 0 || groupNodes.length < group.nodes.length) && group.label) {
+            var heading = document.createElement('span');
+            heading.className = 'node-outline-heading';
+            if (offset > 0) heading.setAttribute('data-continuation', 'true');
+            var headingLabel = document.createElement('span');
+            headingLabel.textContent = group.label;
+            var headingCount = document.createElement('small');
+            headingCount.textContent = String(groupNodes.length);
+            heading.appendChild(headingLabel);
+            heading.appendChild(headingCount);
+            section.appendChild(heading);
+          }
+          var items = document.createElement('ul');
+          groupNodes.forEach(function (node) {
+            var id = node.getAttribute('data-node-id');
+            var item = document.createElement('li');
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'node-outline-item';
+            button.setAttribute('data-outline-node', id);
+            button.style.setProperty('--outline-tone', 'var(--' + tone(node) + '-stroke)');
+            var dot = document.createElement('span');
+            dot.className = 'node-outline-dot';
+            dot.setAttribute('aria-hidden', 'true');
+            var label = document.createElement('strong');
+            label.textContent = node.getAttribute('data-node-label');
+            button.appendChild(dot);
+            button.appendChild(label);
+            var sublabel = node.getAttribute('data-node-sublabel');
+            if (sublabel) {
+              var detail = document.createElement('small');
+              detail.textContent = sublabel;
+              button.appendChild(detail);
+            }
+            button.addEventListener('pointerenter', function () { preview(id); });
+            button.addEventListener('focus', function () { preview(id); });
+            button.addEventListener('pointerleave', clearPreview);
+            button.addEventListener('blur', clearPreview);
+            button.addEventListener('click', function () { select(id); });
+            buttons[id] = button;
+            item.appendChild(button);
+            items.appendChild(item);
+          });
+          section.appendChild(items);
+          columns[columnIndex].appendChild(section);
+          columnSize += groupNodes.length;
+          offset += groupNodes.length;
+        }
       });
 
       var previewing = null;
