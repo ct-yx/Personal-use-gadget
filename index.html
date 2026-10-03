@@ -654,6 +654,7 @@ body.page-home footer {
     <button class="filter-btn" data-filter="text">文本</button>
     <button class="filter-btn" data-filter="image">图片</button>
     <button class="filter-btn" data-filter="other">其他</button>
+    <button class="filter-btn" data-filter="project">项目</button>
   </div>
 
   <div class="tool-grid" id="toolGrid">
@@ -780,11 +781,25 @@ const tools = [
   }
 ];
 
+
+const projects = [
+  {
+    id: 'neocraft-architecture',
+    title: 'NeoCraft 项目架构图',
+    desc: '34 个节点展示 UE5.8 客户端、NCL 启动链路、Protocol 763、World 与渲染流程。当前由此 Pages 临时托管，NeoCraft 建立远程仓库后迁回。',
+    icon: '🏗️',
+    iconBg: 'rgba(108,92,231,0.15)',
+    file: 'neocraft-architecture.html',
+    tags: ['NeoCraft', 'UE5.8', '临时托管'],
+    category: '项目'
+  }
+];
+
 function renderTools(filter = 'all') {
   const grid = document.getElementById('toolGrid');
   if (!grid) return;
   const filtered = filter === 'all' ? tools : tools.filter(t => t.filter === filter);
-  grid.innerHTML = filtered.map((t, i) => `
+  const toolCards = filtered.map((t, i) => `
     <div class="tool-card ${['pdf-merger','xapk-apk-converter','hotspot-key'].includes(t.id) ? 'featured' : ''}" data-filter="${t.filter}" data-id="${t.id}">
       <div class="tool-card-topline"><span>${String(i + 1).padStart(2,'0')}</span><em>${t.filter}</em></div>
       <div class="tool-card-icon" style="background:${t.iconBg}">${t.icon}</div>
@@ -799,7 +814,24 @@ function renderTools(filter = 'all') {
         </a>
       </div>
     </div>
-  `).join('');
+  `);
+  const projectCards = (filter === 'all' || filter === 'project') ? projects.map(project => `
+    <div class="tool-card project-card" data-filter="project" data-id="${project.id}">
+      <div class="tool-card-topline"><span>项目</span><em>${project.category}</em></div>
+      <div class="tool-card-icon" style="background:${project.iconBg}">${project.icon}</div>
+      <div class="tool-card-title">${project.title}</div>
+      <div class="tool-card-desc">${project.desc}</div>
+      <div class="tool-card-footer">
+        <div class="tool-tags">
+          ${project.tags.map(tag => `<span class="tool-tag">${tag}</span>`).join('')}
+        </div>
+        <a href="${project.file}" class="tool-btn" target="_blank" onclick="event.stopPropagation()">
+          打开 <span class="tool-btn-arrow">→</span>
+        </a>
+      </div>
+    </div>
+  `).join('') : '';
+  grid.innerHTML = toolCards.join('') + projectCards;
   document.body.classList.add('cards-ready');
 
   // 点击整个卡片也能打开

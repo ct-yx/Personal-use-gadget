@@ -44,6 +44,14 @@
 | **XAPK 转 APK 离线转换签名工具** | 本地解析 XAPK/APKPure 包、清理旧签名、重打包并进行 APK v1 签名。 | [xapk-apk-converter.html](https://ct-yx.github.io/Personal-use-gadget/xapk-apk-converter.html) |
 | **HOTSPOT KEY** | 基于每日时间窗口的动态密码生成器，支持复制和倒计时。 | [hotspot_key.html](https://ct-yx.github.io/Personal-use-gadget/hotspot_key.html) |
 
+## 项目
+
+| 项目 | 说明 | 页面 |
+|---|---|---|
+| **NeoCraft 项目架构图** | 展示 UE5.8 客户端、NCL 启动链路、Protocol 763、World 与渲染流程。 | [打开架构图](https://ct-yx.github.io/Personal-use-gadget/neocraft-architecture.html) |
+
+> 该页面目前临时托管在 Personal-use-gadget Pages；NeoCraft 建立自己的远程仓库后会迁回。架构内容仍属于 NeoCraft 项目材料，不因放入本仓库而新增 Apache-2.0 授权；Archify 与 JetBrains Mono 的许可说明保留在页面中。
+
 ## 使用方式
 
 ### 在线使用
@@ -83,4 +91,4 @@ cd Personal-use-gadget
 
 ## License
 
-MIT
+Apache-2.0（详见 [LICENSE](LICENSE)）。NeoCraft 临时托管架构内容及页面所含第三方资产按页面各自说明处理。
